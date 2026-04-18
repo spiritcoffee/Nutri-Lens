@@ -337,7 +337,7 @@ const Scan = () => {
   const searchDropdownRef = useRef<HTMLDivElement>(null);
 
   /* ── Debounced Spoonacular autocomplete ── */
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     if (!hasApi || !searchQuery.trim() || searchQuery.trim().length < 2) {
       setApiResults([]);
@@ -418,16 +418,18 @@ const Scan = () => {
     return name.toLowerCase().includes(searchLower);
   }, [searchLower]);
 
-  /* Quick search results count */
-  const searchResultCount = useMemo(() => {
-    if (!searchLower) return 0;
-    let count = 0;
+  /* Local search results */
+  const localItemsMatch = useMemo(() => {
+    if (!searchLower) return [];
+    const results: { name: string, emoji: string, catKey: string }[] = [];
     for (const cat of CATEGORIES) {
       for (const item of cat.items) {
-        if (item.name.toLowerCase().includes(searchLower)) count++;
+        if (item.name.toLowerCase().includes(searchLower)) {
+          results.push({ ...item, catKey: cat.key });
+        }
       }
     }
-    return count;
+    return results;
   }, [searchLower]);
 
   /* ── Groq LLaMA 3.2 Vision Model detection ── */
@@ -801,11 +803,11 @@ const Scan = () => {
             {/* Result count badge */}
             {searchLower && (
               <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black ${
-                searchResultCount > 0 || apiResults.length > 0
+                localItemsMatch.length > 0 || apiResults.length > 0
                   ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
                   : 'bg-rose-500/15 border border-rose-500/30 text-rose-400'
               }`}>
-                {searchResultCount + apiResults.length} found
+                {localItemsMatch.length + apiResults.length} found
               </span>
             )}
 
@@ -836,22 +838,67 @@ const Scan = () => {
           )}
         </div>
 
-        {searchFocused && searchQuery.trim().length >= 2 && (apiResults.length > 0 || apiLoading) && (
+        {searchFocused && searchQuery.trim().length >= 2 && (apiResults.length > 0 || apiLoading || localItemsMatch.length > 0) && (
           <div className="absolute left-0 right-0 top-full mt-3 z-[100]
             bg-[#070a0e] rounded-2xl border border-white/10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)]
             overflow-hidden animate-[fadeIn_0.15s_ease]">
 
-            {/* Header */}
-            <div className="px-4 py-2.5 border-b border-white/6 flex items-center justify-between">
-              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
-                Spoonacular Results
-              </span>
-              {apiResults.length > 0 && (
-                <span className="text-[10px] text-emerald-500/70 font-semibold">
-                  {apiResults.length} suggestions
+            {/* Local Results */}
+            {localItemsMatch.length > 0 && (
+              <div className="border-b border-white/6 pb-1">
+                <div className="px-4 py-2 mt-1 flex items-center justify-between">
+                  <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
+                    Quick Add (Local)
+                  </span>
+                  <span className="text-[10px] text-emerald-500/70 font-semibold">
+                    {localItemsMatch.length} found
+                  </span>
+                </div>
+                {localItemsMatch.map(item => {
+                  const alreadySelected = selected[item.catKey]?.has(item.name);
+                  return (
+                    <button
+                      key={item.name}
+                      onMouseDown={e => {
+                        e.preventDefault();
+                        toggleItem(item.catKey, item.name);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left
+                        transition-all duration-100 hover:bg-emerald-500/8 cursor-pointer">
+                      <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/8
+                        flex items-center justify-center text-base flex-shrink-0">
+                        {item.emoji}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold capitalize truncate ${
+                          alreadySelected ? 'text-emerald-400' : 'text-white'
+                        }`}>
+                          {item.name}
+                        </p>
+                      </div>
+                      {alreadySelected && (
+                        <span className="text-[10px] text-emerald-600 font-bold px-2 py-0.5
+                          rounded bg-emerald-500/10">Added</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* API Header */}
+            {(apiResults.length > 0 || apiLoading) && (
+              <div className="px-4 py-2.5 border-b border-white/6 flex items-center justify-between">
+                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                  Spoonacular Results
                 </span>
-              )}
-            </div>
+                {apiResults.length > 0 && (
+                  <span className="text-[10px] text-emerald-500/70 font-semibold">
+                    {apiResults.length} suggestions
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Loading state */}
             {apiLoading && apiResults.length === 0 && (
@@ -927,7 +974,7 @@ const Scan = () => {
         )}
 
         {/* Active search info */}
-        {searchLower && searchResultCount > 0 && !searchFocused && (
+        {searchLower && localItemsMatch.length > 0 && !searchFocused && (
           <p className="text-emerald-500/70 text-xs mt-2 ml-1">
             ✨ Matching items highlighted below — click to add them to your selection
           </p>

@@ -43,6 +43,7 @@ export interface AuthContextValue {
   activeProfiles: NutriProfile[];
   addProfile: (p: NutriProfile) => void;
   deleteProfile: (id: string) => void;
+  updateProfile: (p: NutriProfile) => void;
   /** Toggle a profile in/out of the active selection */
   toggleActiveProfile: (p: NutriProfile) => void;
   /** Replace the entire active selection */

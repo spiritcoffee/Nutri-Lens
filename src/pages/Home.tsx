@@ -1,5 +1,171 @@
+import { useState } from 'react';
 import { useAuth } from '../context/useAuth';
 import { useNavigate } from 'react-router-dom';
+import type { NutriProfile, NutriGoal, DietaryPref } from '../context/authContext';
+
+/* ── AVATARS ── */
+const AVATARS = ['👤','👦','👧','👨','👩','👴','👵','🧑','👨‍🍳','👩‍🍳','🏃','🧘'];
+const GOALS: { value: NutriGoal; label: string }[] = [
+  { value: 'weight-loss',    label: '⚖️ Weight Loss'   },
+  { value: 'muscle-gain',    label: '💪 Muscle Gain'   },
+  { value: 'maintenance',    label: '🔁 Maintenance'   },
+  { value: 'general-health', label: '❤️ General Health' },
+];
+const DIETS: { value: DietaryPref; label: string }[] = [
+  { value: 'vegetarian',  label: '🥦 Vegetarian' },
+  { value: 'vegan',       label: '🌱 Vegan'       },
+  { value: 'gluten-free', label: '🌾 Gluten-Free' },
+  { value: 'dairy-free',  label: '🥛 Dairy-Free'  },
+  { value: 'low-carb',    label: '🥩 Low-Carb'    },
+  { value: 'high-protein',label: '🍗 High-Protein' },
+];
+
+/* ── Edit Modal ───────────────────────────────────────────────────────── */
+const EditModal = ({ profile, onSave, onClose }: {
+  profile: NutriProfile;
+  onSave: (p: NutriProfile) => void;
+  onClose: () => void;
+}) => {
+  const [form, setForm] = useState<NutriProfile>({ ...profile });
+  const set = (k: keyof NutriProfile, v: unknown) =>
+    setForm(prev => ({ ...prev, [k]: v }));
+
+  const toggleDiet = (d: DietaryPref) => {
+    const prefs = form.dietaryPreferences ?? [];
+    const next = prefs.includes(d) ? prefs.filter(x => x !== d) : [...prefs, d];
+    set('dietaryPreferences', next);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+      {/* Panel */}
+      <div className="relative z-10 w-full max-w-lg bg-[#0b0f14] border border-white/10
+        rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-y-auto max-h-[90vh]">
+
+        {/* Header */}
+        <div className="sticky top-0 bg-[#0b0f14] border-b border-white/8 px-6 py-4
+          flex items-center justify-between">
+          <h3 className="text-white font-black text-lg">Edit Profile</h3>
+          <button onClick={onClose}
+            className="w-8 h-8 rounded-full bg-white/6 hover:bg-white/12 flex items-center
+              justify-center text-gray-400 hover:text-white transition-all cursor-pointer">✕</button>
+        </div>
+
+        <div className="px-6 py-5 space-y-5">
+
+          {/* Avatar picker */}
+          <div>
+            <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold block mb-2">Avatar</label>
+            <div className="flex flex-wrap gap-2">
+              {AVATARS.map(a => (
+                <button key={a} onClick={() => set('avatar', a)}
+                  className={`w-10 h-10 rounded-xl text-xl flex items-center justify-center
+                    transition-all cursor-pointer border-2 ${
+                    form.avatar === a
+                      ? 'border-emerald-500 bg-emerald-500/20 scale-110'
+                      : 'border-white/8 bg-white/4 hover:border-emerald-500/50'
+                  }`}>{a}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Name */}
+          <div>
+            <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold block mb-2">Name</label>
+            <input value={form.name} onChange={e => set('name', e.target.value)}
+              className="w-full bg-white/4 border border-white/10 rounded-xl px-4 py-2.5
+                text-white text-sm outline-none focus:border-emerald-500/60 focus:ring-1
+                focus:ring-emerald-500/30 transition-all" />
+          </div>
+
+          {/* Age / Weight / Height */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Age', key: 'age' as const, unit: 'yr', min: 5, max: 120 },
+              { label: 'Weight', key: 'weight' as const, unit: 'kg', min: 20, max: 300 },
+              { label: 'Height', key: 'height' as const, unit: 'cm', min: 50, max: 250 },
+            ].map(({ label, key, unit, min, max }) => (
+              <div key={key}>
+                <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold block mb-2">
+                  {label} ({unit})
+                </label>
+                <input type="number" min={min} max={max}
+                  value={form[key] as number}
+                  onChange={e => set(key, Number(e.target.value))}
+                  className="w-full bg-white/4 border border-white/10 rounded-xl px-4 py-2.5
+                    text-white text-sm outline-none focus:border-emerald-500/60 focus:ring-1
+                    focus:ring-emerald-500/30 transition-all" />
+              </div>
+            ))}
+          </div>
+
+          {/* Gender */}
+          <div>
+            <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold block mb-2">Gender</label>
+            <div className="flex gap-2">
+              {(['Male','Female','Other'] as const).map(g => (
+                <button key={g} onClick={() => set('gender', g)}
+                  className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition-all cursor-pointer ${
+                    form.gender === g
+                      ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
+                      : 'border-white/10 bg-white/4 text-gray-400 hover:border-emerald-500/40'
+                  }`}>{g}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Goal */}
+          <div>
+            <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold block mb-2">Goal</label>
+            <div className="grid grid-cols-2 gap-2">
+              {GOALS.map(({ value, label }) => (
+                <button key={value} onClick={() => set('goal', value)}
+                  className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer text-left ${
+                    form.goal === value
+                      ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
+                      : 'border-white/10 bg-white/4 text-gray-400 hover:border-emerald-500/40'
+                  }`}>{label}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Dietary prefs */}
+          <div>
+            <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold block mb-2">Dietary Preferences</label>
+            <div className="flex flex-wrap gap-2">
+              {DIETS.map(({ value, label }) => {
+                const active = form.dietaryPreferences?.includes(value);
+                return (
+                  <button key={value} onClick={() => toggleDiet(value)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                      active
+                        ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
+                        : 'border-white/10 bg-white/4 text-gray-400 hover:border-emerald-500/40'
+                    }`}>{label}</button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Save button */}
+          <button
+            onClick={() => { onSave(form); onClose(); }}
+            className="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400
+              text-gray-950 font-black text-sm transition-all duration-200
+              cursor-pointer shadow-lg shadow-emerald-900/40 mt-2">
+            💾 Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 /* ── Nutrition progress card ─────────────────────────────────────────── */
 const NutritionCard = ({
@@ -68,8 +234,9 @@ const Action = ({ icon, title, desc, label, onClick, accent }: {
 
 /* ════════════════════════════════════════════════════════════════════════ */
 const Home = () => {
-  const { activeProfiles } = useAuth();
+  const { activeProfiles, updateProfile } = useAuth();
   const navigate = useNavigate();
+  const [editingProfile, setEditingProfile] = useState<NutriProfile | null>(null);
 
   const isGroup = activeProfiles.length > 1;
   const primary = activeProfiles[0];
@@ -100,6 +267,15 @@ const Home = () => {
 
   return (
     <div className="page-enter space-y-8">
+
+      {/* Edit modal */}
+      {editingProfile && (
+        <EditModal
+          profile={editingProfile}
+          onSave={updateProfile}
+          onClose={() => setEditingProfile(null)}
+        />
+      )}
 
       {/* ══ HERO BANNER ════════════════════════════════════════════════ */}
       <div className="relative rounded-3xl overflow-hidden h-[260px]">
@@ -232,10 +408,19 @@ const Home = () => {
                   {/* Profile header */}
                   <div className="bg-gradient-to-r from-emerald-900/30 to-transparent px-5 py-4 flex items-center gap-3 border-b border-white/5">
                     <span className="text-3xl">{p.avatar}</span>
-                    <div>
+                    <div className="flex-1">
                       <p className="text-white font-bold text-sm">{p.name}</p>
                       <p className="text-gray-500 text-xs">{p.age}y · {p.gender}</p>
                     </div>
+                    {/* Edit button */}
+                    <button
+                      onClick={() => setEditingProfile(p)}
+                      title="Edit profile"
+                      className="w-8 h-8 rounded-xl bg-white/6 hover:bg-emerald-500/20
+                        border border-white/8 hover:border-emerald-500/40
+                        flex items-center justify-center text-gray-500
+                        hover:text-emerald-400 transition-all cursor-pointer text-sm"
+                    >✏️</button>
                   </div>
                   {/* Stats */}
                   <div className="grid grid-cols-2 divide-x divide-y divide-white/5">

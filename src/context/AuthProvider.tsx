@@ -64,6 +64,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
   }, []);
 
+  const updateProfile = useCallback((updated: NutriProfile) => {
+    setProfiles(prev => {
+      const next = prev.map(p => p.id === updated.id ? updated : p);
+      localStorage.setItem(LS_PROFILES, JSON.stringify(next));
+      return next;
+    });
+    setActiveState(prev => {
+      const next = prev.map(p => p.id === updated.id ? updated : p);
+      localStorage.setItem(LS_ACTIVE, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const toggleActiveProfile = useCallback((p: NutriProfile) => {
     setActiveState(prev => {
       const exists = prev.some(a => a.id === p.id);
@@ -111,6 +124,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         activeProfiles,
         addProfile,
         deleteProfile,
+        updateProfile,
         toggleActiveProfile,
         setActiveProfiles,
         clearActiveProfiles,

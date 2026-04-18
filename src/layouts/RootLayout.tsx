@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 
 const NAV = [
@@ -12,7 +12,6 @@ const NAV = [
 const RootLayout = () => {
   const { user, logout, activeProfiles, clearActiveProfiles } = useAuth();
   const navigate  = useNavigate();
-  const location  = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
