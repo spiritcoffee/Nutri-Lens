@@ -4,7 +4,6 @@ import { useAuth } from '../context/useAuth';
 
 const NAV = [
   { to: '/home',    icon: '⊞',  label: 'Dashboard' },
-  { to: '/scan',    icon: '⊙',  label: 'Ingredients' },
   { to: '/history', icon: '◷',  label: 'History'   },
   { to: '/profile', icon: '◉',  label: 'Stats'     },
 ];

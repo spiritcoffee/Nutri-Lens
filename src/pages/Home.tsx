@@ -215,22 +215,8 @@ const NutritionCard = ({
   );
 };
 
-/* ── Action tile ─────────────────────────────────────────────────────── */
-const Action = ({ icon, title, desc, label, onClick, accent }: {
-  icon: string; title: string; desc: string; label: string; onClick: () => void; accent: string;
-}) => (
-  <button onClick={onClick} className={`glass glass-hover rounded-2xl p-6 text-left
-    hover:scale-[1.015] active:scale-[0.99] transition-all duration-200 cursor-pointer
-    border-l-4 ${accent} w-full group`}>
-    <span className="text-3xl mb-4 block">{icon}</span>
-    <p className="text-white font-bold text-base mb-1">{title}</p>
-    <p className="text-gray-500 text-sm leading-relaxed mb-4">{desc}</p>
-    <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400
-      group-hover:gap-2 transition-all duration-200">
-      {label} <span>→</span>
-    </span>
-  </button>
-);
+
+
 
 /* ════════════════════════════════════════════════════════════════════════ */
 const Home = () => {
@@ -278,7 +264,7 @@ const Home = () => {
       { calories: 0, protein: 0, carbs: 0, fat: 0 }
     );
 
-  /* ── Goal satisfaction check ── */
+  /* ── Goal satisfaction — show celebration only once per day ── */
   const goalsReached =
     consumed.calories >= avgTdee &&
     consumed.protein  >= targetProtein;
@@ -286,7 +272,12 @@ const Home = () => {
   useEffect(() => {
     if (goalsReached && activeProfiles.length > 0) {
       markGoalDay(todayStr);
-      setShowCelebration(true);
+      // Only show confetti once per calendar day
+      const celebKey = `nutri-lens-celebrated-${todayStr}`;
+      if (!localStorage.getItem(celebKey)) {
+        localStorage.setItem(celebKey, '1');
+        setShowCelebration(true);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goalsReached]);
@@ -320,20 +311,29 @@ const Home = () => {
     return max;
   })();
 
-  /* ── Heatmap grid: last 16 weeks ── */
-  const WEEKS = 16;
-  const heatmapDays: { date: string; active: boolean; isToday: boolean }[] = [];
-  const startDay = new Date(todayStart);
-  startDay.setDate(startDay.getDate() - (WEEKS * 7 - 1));
-  for (let i = 0; i < WEEKS * 7; i++) {
-    const d = new Date(startDay);
-    d.setDate(d.getDate() + i);
-    const str = isoDate(d);
-    heatmapDays.push({ date: str, active: goalDaysSet.has(str), isToday: str === todayStr });
-  }
-  const heatmapCols = Array.from({ length: WEEKS }, (_, wi) =>
-    heatmapDays.slice(wi * 7, wi * 7 + 7)
-  );
+  /* ── Heatmap: monthly grid with year selector ── */
+  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const thisYear = todayStart.getFullYear();
+  const allYears = Array.from(
+    new Set([thisYear, ...goalDays.map(d => parseInt(d.slice(0,4)))])
+  ).sort((a,b) => b - a);
+  const [selectedYear, setSelectedYear] = useState(thisYear);
+
+  // Build full year grid grouped by month
+  const monthGrids = MONTH_NAMES.map((month, mi) => {
+    const days: { date: string; active: boolean; isToday: boolean }[] = [];
+    const first = new Date(selectedYear, mi, 1);
+    const last  = new Date(selectedYear, mi + 1, 0);
+    // leading blanks so day 1 aligns to its week day (Mon=0)
+    const startDow = (first.getDay() + 6) % 7;
+    for (let b = 0; b < startDow; b++) days.push({ date: '', active: false, isToday: false });
+    for (let d = 1; d <= last.getDate(); d++) {
+      const dt  = new Date(selectedYear, mi, d);
+      const str = isoDate(dt);
+      days.push({ date: str, active: goalDaysSet.has(str), isToday: str === todayStr });
+    }
+    return { month, days };
+  });
 
   /* ── Confetti particles ── */
   const CONFETTI = Array.from({ length: 40 }, (_, i) => ({
@@ -488,7 +488,8 @@ const Home = () => {
 
           {/* ── Streak heatmap ── */}
           <div className="glass rounded-3xl p-6">
-            <div className="flex items-center justify-between mb-4">
+            {/* Header row */}
+            <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-3">
                 <h2 className="text-white font-bold text-base">Goal Streak</h2>
                 {currentStreak > 0 && (
@@ -498,87 +499,84 @@ const Home = () => {
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-4 text-xs">
-                <span className="text-gray-600">
+              <div className="flex items-center gap-3">
+                <span className="text-gray-600 text-xs">
                   Longest: <span className="text-emerald-400 font-black">{longestStreak}</span>
                 </span>
-                <span className="text-gray-600">
+                <span className="text-gray-600 text-xs">
                   Total: <span className="text-white font-bold">{goalDays.length}</span> days
                 </span>
+                {/* Year selector */}
+                <select
+                  value={selectedYear}
+                  onChange={e => setSelectedYear(Number(e.target.value))}
+                  className="bg-white/6 border border-white/10 rounded-lg px-2 py-1 text-xs
+                    text-white cursor-pointer outline-none focus:border-emerald-500/50"
+                >
+                  {allYears.map(y => (
+                    <option key={y} value={y} className="bg-[#0b0f14]">{y}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            {/* Grid */}
-            <div className="flex gap-1 overflow-x-auto pb-1">
-              {heatmapCols.map((week, wi) => (
-                <div key={wi} className="flex flex-col gap-1">
-                  {week.map(day => (
-                    <div
-                      key={day.date}
-                      title={day.date}
-                      className={`w-3.5 h-3.5 rounded-sm transition-all duration-300 ${
-                        day.isToday
-                          ? day.active
-                            ? 'bg-orange-400 ring-1 ring-orange-300/60'
-                            : 'bg-white/10 ring-1 ring-white/20'
-                          : day.active
-                          ? 'bg-emerald-500 hover:bg-emerald-400'
-                          : 'bg-white/5 hover:bg-white/10'
-                      }`}
-                    />
-                  ))}
+            {/* Monthly grids */}
+            <div className="grid grid-cols-4 gap-4">
+              {monthGrids.map(({ month, days }) => (
+                <div key={month}>
+                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1.5">{month}</p>
+                  {/* Day-of-week header */}
+                  <div className="grid grid-cols-7 gap-0.5 mb-0.5">
+                    {['M','T','W','T','F','S','S'].map((d,i) => (
+                      <div key={i} className="text-[8px] text-gray-700 text-center">{d}</div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-0.5">
+                    {days.map((day, di) => (
+                      <div
+                        key={di}
+                        title={day.date || undefined}
+                        className={`aspect-square rounded-sm transition-all duration-200 ${
+                          !day.date
+                            ? 'invisible'
+                            : day.isToday
+                            ? day.active
+                              ? 'bg-orange-400 ring-1 ring-orange-300/60'
+                              : 'bg-white/10 ring-1 ring-white/25'
+                            : day.active
+                            ? 'bg-emerald-500 hover:bg-emerald-400 cursor-pointer'
+                            : 'bg-white/5 hover:bg-white/10'
+                        }`}
+                      />
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
 
             {/* Legend */}
-            <div className="flex items-center justify-between mt-3 text-[10px] text-gray-600">
-              <span>{WEEKS} weeks</span>
-              <div className="flex items-center gap-1.5">
-                <span>Less</span>
-                {['bg-white/5','bg-emerald-700/60','bg-emerald-500','bg-orange-400'].map((c,i) => (
-                  <div key={i} className={`w-3 h-3 rounded-sm ${c}`} />
-                ))}
-                <span>More</span>
-              </div>
+            <div className="flex items-center justify-end mt-4 gap-1.5 text-[10px] text-gray-600">
+              <span>Less</span>
+              {['bg-white/5','bg-emerald-700/60','bg-emerald-500','bg-orange-400'].map((c,i) => (
+                <div key={i} className={`w-3 h-3 rounded-sm ${c}`} />
+              ))}
+              <span>More</span>
             </div>
           </div>
 
-          {/* Quick actions */}
-          <div>
-            <h2 className="text-white font-bold text-lg mb-4">Quick Actions</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <Action icon="📷" title="Detect Ingredients" label="Open scanner"
-                desc="Upload a photo — AI detects ingredients and builds your nutrition list."
-                onClick={() => navigate('/scan')} accent="border-emerald-500" />
-              <Action icon="📋" title="Meal History" label="View logs"
-                desc="Browse past scans, track your daily intake and eating patterns over time."
-                onClick={() => navigate('/history')} accent="border-sky-500" />
-            </div>
-          </div>
-
-          {/* Spices banner */}
-          <div className="relative rounded-2xl overflow-hidden h-36">
-            <img src="/spices-bg.png" alt="spices" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#070a0e]/90 via-[#070a0e]/50 to-transparent" />
-            <div className="absolute inset-0 flex items-center px-8 gap-8">
-              <div>
-                <p className="text-emerald-400 text-[10px] font-bold uppercase tracking-[0.15em] mb-1">
-                  Indian cuisine
-                </p>
-                <p className="text-white font-black text-xl leading-tight">
-                  16 masalas &<br/>pantry staples
-                </p>
-              </div>
-              <button onClick={() => navigate('/scan')}
-                className="ml-auto flex-shrink-0 px-5 py-2.5 rounded-2xl
-                  bg-emerald-500 hover:bg-emerald-400 active:scale-95
-                  text-gray-950 font-bold text-sm transition-all duration-150 cursor-pointer">
-                Pick Ingredients →
-              </button>
-            </div>
-          </div>
+          {/* ── CTA button ── */}
+          <button
+            onClick={() => navigate('/scan')}
+            className="w-full py-4 rounded-2xl flex items-center justify-center gap-3
+              bg-gradient-to-r from-emerald-600 to-emerald-500
+              hover:from-emerald-500 hover:to-emerald-400
+              text-gray-950 font-black text-base
+              shadow-xl shadow-emerald-900/40
+              transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] cursor-pointer">
+            🍽️ Let's Build a Meal
+          </button>
         </div>
+
 
         {/* ── RIGHT: Profile panel ─────────────────────────────────────── */}
         <div className="col-span-1 space-y-4">
