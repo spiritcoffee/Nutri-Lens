@@ -166,8 +166,8 @@ const ProfileSelector = () => {
 
       {/* ── Header ──────────────────────────────────────────────────── */}
       <div className="relative z-10 flex flex-col items-center mb-12 text-center">
-        <div className="flex items-center gap-2 mb-6 opacity-80">
-          <span className="text-2xl">🥗</span>
+        <div className="flex items-center gap-3 mb-6 opacity-90">
+          <img src="/logo.png" alt="Nutri-Lens Logo" className="w-10 h-10 shadow-[0_0_15px_rgba(16,185,129,0.3)] rounded-xl" />
           <span className="text-green-400 font-bold text-xl tracking-tight">Nutri-Lens</span>
         </div>
 

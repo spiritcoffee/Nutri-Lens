@@ -50,7 +50,7 @@ const Login = () => {
         {/* Brand over image */}
         <div className="relative z-10 p-10">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">🥗</span>
+            <img src="/logo.png" alt="Nutri-Lens Logo" className="w-10 h-10 shadow-[0_0_15px_rgba(16,185,129,0.3)] rounded-xl" />
             <span className="text-2xl font-black text-white tracking-tight">Nutri-Lens</span>
           </div>
         </div>
@@ -90,10 +90,8 @@ const Login = () => {
 
           {/* Logo */}
           <div className="flex flex-col items-center mb-10">
-            <div className="w-20 h-20 rounded-[22px] mb-6 pulse-green glow-green
-              bg-gradient-to-br from-emerald-500/20 to-green-900/20
-              border border-emerald-500/25 flex items-center justify-center">
-              <span className="text-4xl">🥗</span>
+            <div className="w-24 h-24 rounded-[26px] mb-6 shadow-[0_0_40px_rgba(16,185,129,0.3)] flex items-center justify-center bg-black/20 backdrop-blur-sm border border-emerald-500/25 p-2 pulse-green glow-green">
+              <img src="/logo.png" alt="Nutri-Lens Logo" className="w-full h-full object-cover rounded-[18px]" />
             </div>
             <h1 className="text-3xl font-black text-white tracking-tight">Welcome back</h1>
             <p className="text-gray-500 text-sm mt-2 text-center">

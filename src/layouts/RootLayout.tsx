@@ -41,8 +41,8 @@ const RootLayout = () => {
         <div className="max-w-[1400px] mx-auto px-8 h-[62px] flex items-center gap-8">
 
           {/* Brand */}
-          <NavLink to="/home" className="flex items-center gap-2.5 flex-shrink-0 group">
-            <span className="text-2xl">🥗</span>
+          <NavLink to="/home" className="flex items-center gap-3 flex-shrink-0 group">
+            <img src="/logo.png" alt="Nutri-Lens Logo" className="w-9 h-9 rounded-[8px] shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-transform group-hover:scale-105" />
             <span className="font-black text-lg text-white tracking-tight group-hover:text-emerald-400 transition-colors">
               Nutri-Lens
             </span>
