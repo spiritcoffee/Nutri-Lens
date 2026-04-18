@@ -1,189 +1,151 @@
 import { useState, useRef, useEffect } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 
-const navItems = [
-  { to: '/home',    label: 'Home'    },
-  { to: '/scan',    label: 'Scan'    },
-  { to: '/history', label: 'History' },
+const NAV = [
+  { to: '/home',    icon: '⊞',  label: 'Dashboard' },
+  { to: '/scan',    icon: '⊙',  label: 'Ingredients' },
+  { to: '/history', icon: '◷',  label: 'History'   },
+  { to: '/profile', icon: '◉',  label: 'Stats'     },
 ];
 
 const RootLayout = () => {
   const { user, logout, activeProfiles, clearActiveProfiles } = useAuth();
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
+  const location  = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  /* Close dropdown when clicking outside */
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+    const h = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node))
         setMenuOpen(false);
-      }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
+  const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
+  const handleSwitch = () => { clearActiveProfiles(); setMenuOpen(false); navigate('/profile-select', { replace: true }); };
 
-  const handleSwitchProfile = () => {
-    clearActiveProfiles();
-    setMenuOpen(false);
-    navigate('/profile-select', { replace: true });
-  };
+  const visibleAvatars = activeProfiles.slice(0, 3);
+  const overflow = activeProfiles.length - 3;
 
-  /* ── Stacked avatar preview (up to 3 + overflow count) ─────────── */
-  const visibleProfiles = activeProfiles.slice(0, 3);
-  const overflowCount   = activeProfiles.length - 3;
+  const pageTitle = NAV.find(n => location.pathname.startsWith(n.to))?.label ?? 'Nutri-Lens';
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex flex-col">
-      {/* ── Navbar ─────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-gray-900/80 backdrop-blur border-b border-gray-800">
-        <nav className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+    <div className="min-h-screen bg-[#070a0e] text-white flex flex-col">
+
+      {/* ══ TOP NAVBAR ═══════════════════════════════════════════════ */}
+      <header className="sticky top-0 z-50 glass border-b border-white/5">
+        <div className="max-w-[1400px] mx-auto px-8 h-[62px] flex items-center gap-8">
 
           {/* Brand */}
-          <NavLink
-            to="/home"
-            className="text-green-400 font-bold text-xl tracking-tight hover:text-green-300 transition-colors"
-          >
-            🥗 Nutri-Lens
+          <NavLink to="/home" className="flex items-center gap-2.5 flex-shrink-0 group">
+            <span className="text-2xl">🥗</span>
+            <span className="font-black text-lg text-white tracking-tight group-hover:text-emerald-400 transition-colors">
+              Nutri-Lens
+            </span>
           </NavLink>
 
-          <div className="flex items-center gap-1">
-            {/* Nav links */}
-            <ul className="flex items-center gap-1">
-              {navItems.map(({ to, label }) => (
-                <li key={to}>
-                  <NavLink
-                    to={to}
-                    className={({ isActive }) =>
-                      `px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                        isActive
-                          ? 'bg-green-500/20 text-green-400'
-                          : 'text-gray-400 hover:text-white hover:bg-gray-800'
-                      }`
-                    }
-                  >
-                    {label}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
+          {/* ── Nav links ── */}
+          <nav className="flex items-center gap-1 flex-1">
+            {NAV.map(({ to, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  `px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-150 ${
+                    isActive
+                      ? 'bg-emerald-500/15 text-emerald-400 shadow-sm'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  }`
+                }
+              >
+                {label}
+              </NavLink>
+            ))}
+          </nav>
 
-            {/* Stacked avatars + dropdown */}
-            {user && activeProfiles.length > 0 && (
-              <div className="relative ml-3" ref={menuRef}>
-                <button
-                  id="btn-avatar-menu"
-                  onClick={() => setMenuOpen((o) => !o)}
-                  className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 bg-gray-800 hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
-                >
-                  {/* Stacked emoji avatars */}
-                  <span className="flex -space-x-2">
-                    {visibleProfiles.map((p, i) => (
-                      <span
-                        key={p.id}
-                        style={{ zIndex: visibleProfiles.length - i }}
-                        className="w-8 h-8 rounded-full bg-gray-700 border-2 border-gray-800 flex items-center justify-center text-lg ring-1 ring-green-500/40"
-                      >
-                        {p.avatar}
-                      </span>
-                    ))}
-                    {overflowCount > 0 && (
-                      <span
-                        style={{ zIndex: 0 }}
-                        className="w-8 h-8 rounded-full bg-gray-900 border-2 border-gray-800 flex items-center justify-center text-xs font-bold text-green-400 ring-1 ring-green-500/40"
-                      >
-                        +{overflowCount}
-                      </span>
-                    )}
-                  </span>
+          {/* ── Page title ── */}
+          <span className="hidden xl:block text-gray-600 text-sm font-medium">{pageTitle}</span>
 
-                  {/* Name — first profile or "X people" */}
-                  <span className="text-sm font-medium text-white hidden sm:block">
-                    {activeProfiles.length === 1
-                      ? activeProfiles[0].name.split(' ')[0]
-                      : `${activeProfiles.length} people`}
-                  </span>
+          {/* ── Profile avatar pill ── */}
+          {user && activeProfiles.length > 0 && (
+            <div className="relative flex-shrink-0" ref={menuRef}>
+              <button
+                id="btn-avatar-menu"
+                onClick={() => setMenuOpen(o => !o)}
+                className="flex items-center gap-2.5 rounded-2xl pl-1.5 pr-4 py-1.5 glass glass-hover border border-white/8 transition-all duration-200 cursor-pointer"
+              >
+                {/* Stacked avatars */}
+                <span className="flex -space-x-2">
+                  {visibleAvatars.map((p, i) => (
+                    <span key={p.id} style={{ zIndex: visibleAvatars.length - i }}
+                      className="w-8 h-8 rounded-full bg-gray-800 border-2 border-[#070a0e] flex items-center justify-center text-base ring-1 ring-emerald-500/30">
+                      {p.avatar}
+                    </span>
+                  ))}
+                  {overflow > 0 && (
+                    <span className="w-8 h-8 rounded-full bg-emerald-900 border-2 border-[#070a0e] flex items-center justify-center text-xs font-bold text-emerald-400">
+                      +{overflow}
+                    </span>
+                  )}
+                </span>
+                <span className="text-sm font-semibold text-white">
+                  {activeProfiles.length === 1
+                    ? activeProfiles[0].name.split(' ')[0]
+                    : `${activeProfiles.length} profiles`}
+                </span>
+                <svg className={`w-3.5 h-3.5 text-gray-500 transition-transform ${menuOpen ? 'rotate-180' : ''}`}
+                  fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 16 16">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6l4 4 4-4"/>
+                </svg>
+              </button>
 
-                  <svg
-                    className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${menuOpen ? 'rotate-180' : ''}`}
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="4 6 8 10 12 6" />
-                  </svg>
-                </button>
-
-                {/* Dropdown */}
-                {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-60 rounded-xl border border-gray-700 bg-gray-900 shadow-xl shadow-black/40 overflow-hidden">
-
-                    {/* Active profiles list */}
-                    <div className="px-4 py-3 border-b border-gray-800">
-                      <p className="text-xs text-gray-500 uppercase tracking-widest mb-2 font-semibold">
-                        Tracking for
-                      </p>
-                      <div className="flex flex-col gap-1.5">
-                        {activeProfiles.map((p) => (
-                          <div key={p.id} className="flex items-center gap-2">
-                            <span className="text-xl">{p.avatar}</span>
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-white truncate">{p.name}</p>
-                              <p className="text-xs text-gray-500">
-                                {p.age}y · {p.gender} · {p.weight}kg
-                              </p>
-                            </div>
+              {/* Dropdown */}
+              {menuOpen && (
+                <div className="absolute right-0 mt-2 w-72 rounded-2xl glass border border-white/8 shadow-2xl shadow-black/60 overflow-hidden z-50">
+                  {/* Header */}
+                  <div className="px-5 py-4 border-b border-white/5">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-[0.15em] font-bold mb-3">Tracking for</p>
+                    <div className="space-y-2.5">
+                      {activeProfiles.map(p => (
+                        <div key={p.id} className="flex items-center gap-3">
+                          <span className="w-10 h-10 rounded-xl bg-gray-800 border border-white/8 flex items-center justify-center text-xl flex-shrink-0">{p.avatar}</span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-white truncate">{p.name}</p>
+                            <p className="text-xs text-gray-500">{p.age}y · {p.gender} · {p.weight}kg · {p.height}cm</p>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
                     </div>
+                    {user && <p className="text-xs text-gray-600 mt-3 truncate">{user.email}</p>}
+                  </div>
 
-                    {/* Menu items */}
-                    <NavLink
-                      to="/profile"
-                      onClick={() => setMenuOpen(false)}
-                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
-                    >
-                      <span>📊</span> Nutrition Stats
-                    </NavLink>
-
-                    <button
-                      id="btn-switch-profile"
-                      onClick={handleSwitchProfile}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer"
-                    >
-                      <span>🔀</span> Switch Profiles
+                  {/* Actions */}
+                  <div className="py-1.5">
+                    <button onClick={handleSwitch}
+                      className="w-full flex items-center gap-3 px-5 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors cursor-pointer">
+                      <span className="w-7 h-7 rounded-lg bg-emerald-900/40 flex items-center justify-center text-base">🔀</span>
+                      Switch Profiles
                     </button>
-
-                    <div className="border-t border-gray-800" />
-
-                    <button
-                      id="btn-logout"
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-gray-800 hover:text-red-300 transition-colors cursor-pointer"
-                    >
-                      <span>🚪</span> Sign Out
+                    <div className="mx-4 my-1 border-t border-white/5" />
+                    <button onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-5 py-2.5 text-sm text-red-400 hover:bg-red-500/8 hover:text-red-300 transition-colors cursor-pointer">
+                      <span className="w-7 h-7 rounded-lg bg-red-900/30 flex items-center justify-center text-base">🚪</span>
+                      Sign Out
                     </button>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
-        </nav>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </header>
 
-      {/* ── Page content ───────────────────────────────────────────── */}
-      <main className="flex-1">
+      {/* ══ MAIN ════════════════════════════════════════════════════ */}
+      <main className="flex-1 max-w-[1400px] mx-auto w-full px-8 py-8">
         <Outlet />
       </main>
     </div>

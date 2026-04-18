@@ -4,149 +4,159 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/useAuth';
 import type { GoogleUser } from '../context/authContext';
 
-/* Google brand colours */
-const GOOGLE_BLUE = '#4285F4';
-
-/* ── Decorative background blob ─────────────────────────────────────── */
-const Blob = ({
-  className,
-}: {
-  className: string;
-}) => (
-  <div
-    className={`absolute rounded-full blur-3xl opacity-20 pointer-events-none ${className}`}
-  />
-);
-
-/* ── Feature pill ───────────────────────────────────────────────────── */
-const Pill = ({ icon, text }: { icon: string; text: string }) => (
-  <div className="flex items-center gap-2 rounded-full border border-green-800/60 bg-green-950/40 px-4 py-2 text-sm text-green-300">
-    <span>{icon}</span>
-    <span>{text}</span>
-  </div>
-);
-
-/* ═══════════════════════════════════════════════════════════════════ */
 const Login = () => {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  /* If already logged in, go to profile selector */
   useEffect(() => {
     if (isAuthenticated) navigate('/profile-select', { replace: true });
   }, [isAuthenticated, navigate]);
 
-  /* Fetch the user's profile info using the access token */
-  const fetchUserInfo = async (accessToken: string): Promise<GoogleUser> => {
-    const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: `Bearer ${accessToken}` },
+  const fetchUserInfo = async (token: string): Promise<GoogleUser> => {
+    const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) throw new Error('Failed to fetch user info');
-    return res.json() as Promise<GoogleUser>;
+    if (!r.ok) throw new Error('Failed to fetch user info');
+    return r.json() as Promise<GoogleUser>;
   };
 
   const googleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      try {
-        const userInfo = await fetchUserInfo(tokenResponse.access_token);
-        login(userInfo);
-        navigate('/profile-select', { replace: true });
-      } catch (err) {
-        console.error('Login failed:', err);
-      }
+    onSuccess: async ({ access_token }) => {
+      try { const u = await fetchUserInfo(access_token); login(u); navigate('/profile-select', { replace: true }); }
+      catch (e) { console.error(e); }
     },
-    onError: (err) => console.error('Google OAuth error:', err),
+    onError: console.error,
   });
 
+  const features = [
+    { icon: '🧠', title: 'AI Ingredient Detection', desc: 'Upload a food photo — MobileNet identifies ingredients instantly' },
+    { icon: '👥', title: 'Multi-Profile Tracking',  desc: 'Track nutrition for the whole family simultaneously'            },
+    { icon: '🌶️', title: 'Built for Indian Cuisine', desc: '16 masalas, pantry staples, regional recipes'                  },
+    { icon: '📊', title: 'Personalised Insights',   desc: 'BMI, TDEE, macro targets tailored to each person'              },
+  ];
+
   return (
-    <div className="relative min-h-screen bg-gray-950 flex items-center justify-center overflow-hidden px-4">
-      {/* ── Ambient blobs ──────────────────────────────────────────── */}
-      <Blob className="w-96 h-96 bg-green-600 -top-24 -left-24" />
-      <Blob className="w-80 h-80 bg-emerald-500 bottom-0 right-0" />
-      <Blob className="w-64 h-64 bg-teal-600 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+    <div className="min-h-screen bg-[#070a0e] flex overflow-hidden">
 
-      {/* ── Card ───────────────────────────────────────────────────── */}
-      <div className="relative w-full max-w-sm rounded-3xl border border-gray-800 bg-gray-900/70 backdrop-blur-xl p-10 shadow-2xl shadow-black/60 flex flex-col items-center gap-7">
+      {/* ══ LEFT PANEL — Hero image ══════════════════════════════════════ */}
+      <div className="relative hidden lg:flex lg:w-[55%] flex-col overflow-hidden">
+        <img src="/hero-food.png" alt="Indian food spread"
+          className="absolute inset-0 w-full h-full object-cover object-center" />
 
-        {/* Logo */}
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-green-500/10 border border-green-500/30 shadow-lg shadow-green-900/30">
-            <span className="text-5xl">🥗</span>
+        {/* Gradient vignette */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-[#070a0e]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#070a0e] via-transparent to-black/20" />
+
+        {/* Brand over image */}
+        <div className="relative z-10 p-10">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">🥗</span>
+            <span className="text-2xl font-black text-white tracking-tight">Nutri-Lens</span>
           </div>
-          <div className="text-center">
-            <h1 className="text-3xl font-extrabold text-white tracking-tight">
-              Nutri-Lens
-            </h1>
-            <p className="text-gray-400 text-sm mt-1">
-              Your AI nutrition companion
+        </div>
+
+        {/* Feature cards at bottom */}
+        <div className="relative z-10 mt-auto p-10 space-y-3">
+          <p className="text-emerald-400 text-xs font-bold uppercase tracking-[0.15em] mb-4">
+            Everything you need
+          </p>
+          {features.map(({ icon, title, desc }) => (
+            <div key={title}
+              className="flex items-start gap-4 glass rounded-2xl px-5 py-3.5 max-w-sm">
+              <span className="text-2xl mt-0.5">{icon}</span>
+              <div>
+                <p className="text-white text-sm font-bold">{title}</p>
+                <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ══ RIGHT PANEL — Sign in form ═══════════════════════════════════ */}
+      <div className="flex-1 flex items-center justify-center px-8 py-16 relative">
+
+        {/* Mobile bg */}
+        <div className="lg:hidden absolute inset-0">
+          <img src="/hero-food.png" alt="" className="w-full h-full object-cover opacity-[0.07]" />
+        </div>
+
+        {/* Glow */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-emerald-600/8 blur-[120px]" />
+        </div>
+
+        <div className="relative z-10 w-full max-w-[400px]">
+
+          {/* Logo */}
+          <div className="flex flex-col items-center mb-10">
+            <div className="w-20 h-20 rounded-[22px] mb-6 pulse-green glow-green
+              bg-gradient-to-br from-emerald-500/20 to-green-900/20
+              border border-emerald-500/25 flex items-center justify-center">
+              <span className="text-4xl">🥗</span>
+            </div>
+            <h1 className="text-3xl font-black text-white tracking-tight">Welcome back</h1>
+            <p className="text-gray-500 text-sm mt-2 text-center">
+              AI-powered nutrition for Indian cuisine
             </p>
           </div>
+
+          {/* Card */}
+          <div className="glass rounded-3xl p-8 space-y-6">
+            <div>
+              <p className="text-white font-bold text-lg">Get started free</p>
+              <p className="text-gray-600 text-sm mt-1">No password needed — sign in with Google</p>
+            </div>
+
+            {/* Google Btn */}
+            <button id="btn-google-login" onClick={() => googleLogin()}
+              className="w-full flex items-center justify-center gap-3 rounded-2xl bg-white
+                hover:bg-gray-50 active:scale-[0.98] px-5 py-3.5 text-gray-800
+                font-semibold text-sm transition-all duration-200 shadow-xl shadow-black/40 cursor-pointer">
+              <svg width="20" height="20" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+              </svg>
+              Continue with Google
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-white/6" />
+              <span className="text-gray-700 text-xs">or</span>
+              <div className="flex-1 h-px bg-white/6" />
+            </div>
+
+            {/* Feature chips — mobile */}
+            <div className="flex flex-wrap gap-2">
+              {['📸 Snap & Analyse','📊 Track Macros','🎯 Goal Setting'].map(t => (
+                <span key={t} className="px-3 py-1 rounded-full text-xs font-medium
+                  bg-emerald-900/30 border border-emerald-700/30 text-emerald-400">
+                  {t}
+                </span>
+              ))}
+            </div>
+
+            <p className="text-gray-700 text-xs text-center">
+              By continuing you agree to our{' '}
+              <span className="text-emerald-600 hover:underline cursor-pointer">Terms</span>{' '}
+              &amp;{' '}
+              <span className="text-emerald-600 hover:underline cursor-pointer">Privacy</span>
+            </p>
+          </div>
+
+          {/* Spices teaser bottom */}
+          <div className="mt-6 rounded-2xl overflow-hidden relative h-28">
+            <img src="/spices-bg.png" alt="spices" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#070a0e]/80 to-transparent flex items-center px-5">
+              <p className="text-white text-sm font-bold leading-snug">
+                16 masalas & pantry staples<br/>
+                <span className="text-emerald-400 font-normal text-xs">Built for Indian kitchens</span>
+              </p>
+            </div>
+          </div>
         </div>
-
-        {/* Divider */}
-        <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-700 to-transparent" />
-
-        {/* Feature pills */}
-        <div className="flex flex-wrap justify-center gap-2">
-          <Pill icon="📸" text="Snap & Analyse" />
-          <Pill icon="📊" text="Track Macros" />
-          <Pill icon="🎯" text="Hit Your Goals" />
-        </div>
-
-        {/* CTA */}
-        <div className="flex flex-col items-center gap-2 text-center">
-          <p className="text-white font-semibold text-lg">Get started for free</p>
-          <p className="text-gray-500 text-xs">
-            Sign in with your Google account. No password needed.
-          </p>
-        </div>
-
-        {/* Google Sign-In button */}
-        <button
-          id="btn-google-login"
-          onClick={() => googleLogin()}
-          className="group flex items-center justify-center gap-3 w-full rounded-xl border border-gray-700 bg-white hover:bg-gray-50 active:scale-[0.98] px-5 py-3.5 text-gray-800 font-semibold text-sm transition-all duration-200 shadow-lg shadow-black/20 cursor-pointer"
-        >
-          {/* Google SVG logo */}
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 48 48"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              fill="#EA4335"
-              d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
-            />
-            <path
-              fill="#4285F4"
-              d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
-            />
-            <path
-              fill="#34A853"
-              d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
-            />
-            <path fill="none" d="M0 0h48v48H0z" />
-          </svg>
-          <span style={{ color: GOOGLE_BLUE }}>Continue with Google</span>
-        </button>
-
-        {/* Footer note */}
-        <p className="text-gray-600 text-xs text-center leading-relaxed">
-          By continuing, you agree to our{' '}
-          <span className="text-green-600 cursor-pointer hover:underline">
-            Terms of Service
-          </span>{' '}
-          and{' '}
-          <span className="text-green-600 cursor-pointer hover:underline">
-            Privacy Policy
-          </span>
-          .
-        </p>
       </div>
     </div>
   );

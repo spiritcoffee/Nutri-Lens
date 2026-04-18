@@ -1,22 +1,78 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
-/* ── Profile selector page ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #070a0e;
+  color: #f1f5f9;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #1a3028; border-radius: 6px; }
+
+/* ── Glassmorphism ───────────────────────────────────────────── */
+.glass {
+  background: rgba(255,255,255,0.035);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.glass-hover:hover {
+  background: rgba(255,255,255,0.055);
+  border-color: rgba(255,255,255,0.12);
+}
+
+/* ── Glow ────────────────────────────────────────────────────── */
+.glow-green  { box-shadow: 0 0 40px rgba(16,185,129,0.2), 0 0 100px rgba(16,185,129,0.06); }
+.glow-green-sm { box-shadow: 0 0 16px rgba(16,185,129,0.3); }
+
+/* ── Profile card animation ──────────────────────────────────── */
+.profile-card { animation: cardIn 0.5s cubic-bezier(0.22,1,0.36,1) both; }
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(24px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+/* ── Page fade ───────────────────────────────────────────────── */
+.page-enter { animation: pageIn 0.3s ease both; }
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+/* ── Profile selector bg ─────────────────────────────────────── */
 .profile-selector-bg {
-  background: #0a0a0f;
+  background: radial-gradient(ellipse 70% 50% at 50% -5%, rgba(16,185,129,0.12) 0%, #070a0e 55%);
 }
 
-/* Shimmer animation on profile card hover */
-.profile-card {
-  animation: fadeSlideIn 0.4s ease both;
+/* ── Shimmer ─────────────────────────────────────────────────── */
+@keyframes shimmer {
+  from { background-position: -600px 0; }
+  to   { background-position:  600px 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg,#111820 25%,#1a2535 50%,#111820 75%);
+  background-size: 600px 100%;
+  animation: shimmer 1.5s ease infinite;
 }
 
-@keyframes fadeSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ── Pulse logo ──────────────────────────────────────────────── */
+@keyframes pulseGlow {
+  0%,100% { box-shadow: 0 0 0 0   rgba(16,185,129,0.3); }
+  50%      { box-shadow: 0 0 0 12px rgba(16,185,129,0);   }
+}
+.pulse-green { animation: pulseGlow 2.5s ease infinite; }
+
+/* ── Stat ring ───────────────────────────────────────────────── */
+.stat-ring {
+  stroke-dasharray: 251;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  transition: stroke-dashoffset 1s ease;
 }
