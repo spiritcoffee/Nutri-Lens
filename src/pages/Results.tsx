@@ -228,12 +228,31 @@ const Results = () => {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [loading, setLoading] = useState(initError === null);
   const [error,   setError]   = useState<string | null>(initError);
-  const [phase,   setPhase]   = useState('Sending to Llama 3…');
+  const [phase,   setPhase]   = useState('Sending to Llama…');
+  const [retryIn, setRetryIn] = useState<number | null>(null); // countdown seconds
 
-  /* ── Groq API call ── */
+  /* ── Retry helper: waits `seconds` with live countdown, then resolves ── */
+  const waitWithCountdown = (seconds: number): Promise<void> =>
+    new Promise(resolve => {
+      let remaining = Math.ceil(seconds);
+      setRetryIn(remaining);
+      const tick = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearInterval(tick);
+          setRetryIn(null);
+          resolve();
+        } else {
+          setRetryIn(remaining);
+        }
+      }, 1000);
+    });
+
+  /* ── Groq API call with automatic 429 retry ── */
   const callGroq = async () => {
     if (!GROQ_KEY) return;
-    setLoading(true); setError(null);
+    setLoading(true); setError(null); setRetryIn(null);
+    const MAX_RETRIES = 3;
     try {
       setPhase('Fetching real recipes from Spoonacular…');
       const candidates = await fetchSpoonacularCandidates(ingredients, 15);
@@ -305,25 +324,48 @@ Respond with ONLY this JSON (no markdown, no explanation):
 
       setPhase('Generating your meals…');
       const client = new Groq({ apiKey: GROQ_KEY, dangerouslyAllowBrowser: true });
-      const completion = await client.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
-        temperature: 0.7,
-        max_tokens: 1500,
-      });
 
-      const raw = completion.choices[0]?.message?.content ?? '';
-      const parsed = JSON.parse(raw) as { meals?: Meal[] };
-      if (!parsed.meals || !Array.isArray(parsed.meals) || parsed.meals.length === 0)
-        throw new Error('Unexpected response structure from Llama 3');
+      let lastError: Error | null = null;
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+          const completion = await client.chat.completions.create({
+            model: 'llama-3.3-70b-versatile',
+            messages: [{ role: 'user', content: prompt }],
+            response_format: { type: 'json_object' },
+            temperature: 0.7,
+            max_tokens: 1500,
+          });
 
-      setMeals(parsed.meals.slice(0, 6));
+          const raw = completion.choices[0]?.message?.content ?? '';
+          const parsed = JSON.parse(raw) as { meals?: Meal[] };
+          if (!parsed.meals || !Array.isArray(parsed.meals) || parsed.meals.length === 0)
+            throw new Error('Unexpected response structure from AI');
+
+          setMeals(parsed.meals.slice(0, 6));
+          return; // success — exit loop
+        } catch (err: any) {
+          const msg: string = err?.message ?? String(err);
+          // Detect 429 rate limit
+          const is429 = msg.includes('429') || msg.toLowerCase().includes('rate_limit');
+          if (is429 && attempt < MAX_RETRIES - 1) {
+            // Parse wait time from Groq error message ("Please try again in 15.7s")
+            const match = msg.match(/(\d+\.?\d*)s/);
+            const waitSec = match ? parseFloat(match[1]) + 1 : 20;
+            setPhase(`Rate limited — retrying in…`);
+            await waitWithCountdown(waitSec);
+            setPhase('Retrying…');
+            lastError = new Error(msg);
+            continue;
+          }
+          throw err; // non-429 or final attempt
+        }
+      }
+      if (lastError) throw lastError;
     } catch (e) {
       console.error(e);
       setError(
         e instanceof SyntaxError
-          ? 'Could not parse Llama 3 response. Try again.'
+          ? 'Could not parse AI response. Try again.'
           : String(e).replace('Error: ', '')
       );
     } finally {
@@ -349,25 +391,47 @@ Respond with ONLY this JSON (no markdown, no explanation):
       </div>
 
       {/* Phase banner */}
-      <div className="glass rounded-2xl px-6 py-5 flex items-center gap-5">
+      <div className={`glass rounded-2xl px-6 py-5 flex items-center gap-5 transition-all duration-300 ${
+        retryIn !== null ? 'border border-amber-500/30 bg-amber-950/20' : ''
+      }`}>
         <div className="relative w-10 h-10 flex-shrink-0">
-          <svg className="animate-spin w-10 h-10 text-emerald-500 absolute inset-0" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-10" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"/>
-            <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-          </svg>
+          {retryIn !== null ? (
+            <svg className="w-10 h-10 text-amber-500" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor"
+                strokeWidth="2.5" strokeOpacity="0.2"/>
+              <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor"
+                strokeWidth="2.5" strokeDasharray="94.2" strokeDashoffset="0"
+                strokeLinecap="round" transform="rotate(-90 18 18)"/>
+              <text x="18" y="22" textAnchor="middle"
+                fill="#fbbf24" fontSize="11" fontWeight="900">{retryIn}</text>
+            </svg>
+          ) : (
+            <svg className="animate-spin w-10 h-10 text-emerald-500 absolute inset-0" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-10" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"/>
+              <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+          )}
         </div>
-        <div>
-          <p className="text-white font-bold">{phase}</p>
-          <p className="text-gray-600 text-xs mt-0.5">
-            Powered by <span className="text-emerald-500 font-semibold">Llama 3 70B</span> via Groq
-          </p>
+        <div className="flex-1">
+          <p className={`font-bold ${retryIn !== null ? 'text-amber-300' : 'text-white'}`}>{phase}</p>
+          {retryIn !== null ? (
+            <p className="text-amber-600 text-xs mt-0.5">
+              Groq rate limit hit &mdash; auto-retrying in <span className="text-amber-400 font-black">{retryIn}s</span>
+            </p>
+          ) : (
+            <p className="text-gray-600 text-xs mt-0.5">
+              Powered by <span className="text-emerald-500 font-semibold">Llama 3 70B</span> via Groq
+            </p>
+          )}
         </div>
-        <div className="ml-auto flex items-center gap-1.5">
-          {[0,1,2].map(i => (
-            <div key={i} className="w-2 h-2 rounded-full bg-emerald-500"
-              style={{ animation: `pulse 1.4s ease-in-out ${i * 0.25}s infinite` }} />
-          ))}
-        </div>
+        {retryIn === null && (
+          <div className="ml-auto flex items-center gap-1.5">
+            {[0,1,2].map(i => (
+              <div key={i} className="w-2 h-2 rounded-full bg-emerald-500"
+                style={{ animation: `pulse 1.4s ease-in-out ${i * 0.25}s infinite` }} />
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
