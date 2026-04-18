@@ -29,6 +29,9 @@ export interface MealHistoryEntry {
   profileIds: string[]; // IDs of the profiles who ate the meal
   mealName: string;
   calories: number;
+  protein: number;   // g
+  carbs: number;     // g
+  fat: number;       // g
   ingredients: string[];
 }
 

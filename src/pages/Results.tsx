@@ -559,6 +559,9 @@ Respond with ONLY this JSON (no markdown, no explanation):
                     profileIds: activeProfiles.map(p => p.id),
                     mealName: selectedMeal.name,
                     calories: selectedMeal.calories,
+                    protein: selectedMeal.protein,
+                    carbs: selectedMeal.carbs,
+                    fat: selectedMeal.fat,
                     ingredients: selectedMeal.ingredients
                   });
                   setSelectedMeal(null);

@@ -234,7 +234,7 @@ const Action = ({ icon, title, desc, label, onClick, accent }: {
 
 /* ════════════════════════════════════════════════════════════════════════ */
 const Home = () => {
-  const { activeProfiles, updateProfile } = useAuth();
+  const { activeProfiles, updateProfile, history } = useAuth();
   const navigate = useNavigate();
   const [editingProfile, setEditingProfile] = useState<NutriProfile | null>(null);
 
@@ -262,8 +262,23 @@ const Home = () => {
   const targetFat     = Math.round((avgTdee * 0.25) / 9);
   const targetCarbs   = Math.round((avgTdee - targetProtein * 4 - targetFat * 9) / 4);
 
-  /* ── Today's consumed (0 until scan history is integrated) ── */
-  const consumed = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+  /* ── Today's consumed — sum from history logged today ── */
+  const todayStart = new Date();
+  todayStart.setHours(0,0,0,0);
+  const todayMs = todayStart.getTime();
+
+  const activeIds = new Set(activeProfiles.map(p => p.id));
+  const consumed = history
+    .filter(e => e.timestamp >= todayMs && e.profileIds.some(id => activeIds.has(id)))
+    .reduce(
+      (acc, e) => ({
+        calories: acc.calories + (e.calories ?? 0),
+        protein:  acc.protein  + (e.protein  ?? 0),
+        carbs:    acc.carbs    + (e.carbs    ?? 0),
+        fat:      acc.fat      + (e.fat      ?? 0),
+      }),
+      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    );
 
   return (
     <div className="page-enter space-y-8">
@@ -335,7 +350,7 @@ const Home = () => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-white font-bold text-lg">Today's Nutrition</h2>
               <span className="text-gray-600 text-xs glass rounded-lg px-3 py-1">
-                {consumed.calories === 0 ? 'No scans today — targets shown' : `${consumed.calories} kcal logged`}
+                {consumed.calories === 0 ? 'No meals logged today — targets shown' : `${consumed.calories} kcal logged today`}
               </span>
             </div>
             <div className="grid grid-cols-4 gap-4">
