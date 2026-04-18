@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/useAuth';
 import { useNavigate } from 'react-router-dom';
 import type { NutriProfile, NutriGoal, DietaryPref } from '../context/authContext';
@@ -234,9 +234,10 @@ const Action = ({ icon, title, desc, label, onClick, accent }: {
 
 /* ════════════════════════════════════════════════════════════════════════ */
 const Home = () => {
-  const { activeProfiles, updateProfile, history } = useAuth();
+  const { activeProfiles, updateProfile, history, goalDays, markGoalDay } = useAuth();
   const navigate = useNavigate();
   const [editingProfile, setEditingProfile] = useState<NutriProfile | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const isGroup = activeProfiles.length > 1;
   const primary = activeProfiles[0];
@@ -251,10 +252,7 @@ const Home = () => {
       }, 0) / activeProfiles.length)
     : 2000;
 
-  /* ── Daily macro targets derived from TDEE ── */
-  // Protein: 1.6g per avg kg of body weight
-  // Fat: 25% of TDEE
-  // Carbs: remainder
+  /* ── Daily macro targets ── */
   const avgWeight = activeProfiles.length
     ? Math.round(activeProfiles.reduce((s, p) => s + p.weight, 0) / activeProfiles.length)
     : 70;
@@ -262,12 +260,12 @@ const Home = () => {
   const targetFat     = Math.round((avgTdee * 0.25) / 9);
   const targetCarbs   = Math.round((avgTdee - targetProtein * 4 - targetFat * 9) / 4);
 
-  /* ── Today's consumed — sum from history logged today ── */
-  const todayStart = new Date();
-  todayStart.setHours(0,0,0,0);
-  const todayMs = todayStart.getTime();
-
+  /* ── Today's consumed ── */
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const todayMs   = todayStart.getTime();
+  const todayStr  = todayStart.toISOString().split('T')[0];
   const activeIds = new Set(activeProfiles.map(p => p.id));
+
   const consumed = history
     .filter(e => e.timestamp >= todayMs && e.profileIds.some(id => activeIds.has(id)))
     .reduce(
@@ -280,8 +278,135 @@ const Home = () => {
       { calories: 0, protein: 0, carbs: 0, fat: 0 }
     );
 
+  /* ── Goal satisfaction check ── */
+  const goalsReached =
+    consumed.calories >= avgTdee &&
+    consumed.protein  >= targetProtein;
+
+  useEffect(() => {
+    if (goalsReached && activeProfiles.length > 0) {
+      markGoalDay(todayStr);
+      setShowCelebration(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goalsReached]);
+
+  /* ── Streak calculation ── */
+  const goalDaysSet = new Set(goalDays);
+
+  const isoDate = (d: Date) => d.toISOString().split('T')[0];
+
+  const currentStreak = (() => {
+    let streak = 0;
+    const d = new Date(todayStart);
+    while (true) {
+      if (!goalDaysSet.has(isoDate(d))) break;
+      streak++;
+      d.setDate(d.getDate() - 1);
+    }
+    return streak;
+  })();
+
+  const longestStreak = (() => {
+    if (goalDays.length === 0) return 0;
+    const sorted = [...goalDays].sort();
+    let max = 1, cur = 1;
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = new Date(sorted[i-1]);
+      prev.setDate(prev.getDate() + 1);
+      if (isoDate(prev) === sorted[i]) { cur++; max = Math.max(max, cur); }
+      else cur = 1;
+    }
+    return max;
+  })();
+
+  /* ── Heatmap grid: last 16 weeks ── */
+  const WEEKS = 16;
+  const heatmapDays: { date: string; active: boolean; isToday: boolean }[] = [];
+  const startDay = new Date(todayStart);
+  startDay.setDate(startDay.getDate() - (WEEKS * 7 - 1));
+  for (let i = 0; i < WEEKS * 7; i++) {
+    const d = new Date(startDay);
+    d.setDate(d.getDate() + i);
+    const str = isoDate(d);
+    heatmapDays.push({ date: str, active: goalDaysSet.has(str), isToday: str === todayStr });
+  }
+  const heatmapCols = Array.from({ length: WEEKS }, (_, wi) =>
+    heatmapDays.slice(wi * 7, wi * 7 + 7)
+  );
+
+  /* ── Confetti particles ── */
+  const CONFETTI = Array.from({ length: 40 }, (_, i) => ({
+    id: i,
+    left: `${Math.random() * 100}%`,
+    delay: `${Math.random() * 1.5}s`,
+    dur:   `${1.5 + Math.random()}s`,
+    color: ['#10b981','#f59e0b','#3b82f6','#ec4899','#a78bfa','#f97316'][i % 6],
+    size:  `${6 + Math.random() * 8}px`,
+    rotate:`${Math.round(Math.random() * 360)}deg`,
+  }));
+
   return (
     <div className="page-enter space-y-8">
+
+      {/* ── CSS for confetti ── */}
+      <style>{`
+        @keyframes confetti-fall {
+          0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+        @keyframes celebrate-pop {
+          0%   { transform: scale(0.7); opacity: 0; }
+          60%  { transform: scale(1.05); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        .confetti-piece { position: fixed; top: -20px; pointer-events: none; z-index: 9999;
+          border-radius: 2px; animation: confetti-fall linear forwards; }
+        .celebrate-card { animation: celebrate-pop 0.4s cubic-bezier(0.22,1,0.36,1) both; }
+        @keyframes streak-pulse {
+          0%,100% { box-shadow: 0 0 0 0 rgba(251,146,60,0); }
+          50%      { box-shadow: 0 0 0 8px rgba(251,146,60,0); }
+        }
+        .streak-fire { animation: streak-pulse 2s ease infinite; }
+      `}</style>
+
+      {/* ── Celebration overlay ── */}
+      {showCelebration && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center"
+          onClick={() => setShowCelebration(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          {/* Confetti */}
+          {CONFETTI.map(p => (
+            <div key={p.id} className="confetti-piece"
+              style={{ left: p.left, animationDelay: p.delay, animationDuration: p.dur,
+                width: p.size, height: p.size, background: p.color, transform: `rotate(${p.rotate})` }} />
+          ))}
+          {/* Card */}
+          <div className="celebrate-card relative z-10 bg-[#0b0f14] border border-emerald-500/30
+            rounded-3xl p-10 text-center max-w-sm mx-4 shadow-2xl shadow-emerald-900/50">
+            <div className="text-7xl mb-4">🎉</div>
+            <h2 className="text-2xl font-black text-white mb-2">Goals Crushed!</h2>
+            <p className="text-gray-400 text-sm mb-6">
+              You've hit all your macro targets for today. Amazing discipline!
+            </p>
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <div className="px-5 py-3 rounded-2xl bg-orange-500/15 border border-orange-500/30">
+                <p className="text-orange-400 font-black text-3xl">{currentStreak}</p>
+                <p className="text-orange-300/70 text-[10px] font-bold uppercase tracking-wider">day streak 🔥</p>
+              </div>
+              <div className="px-5 py-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30">
+                <p className="text-emerald-400 font-black text-3xl">{longestStreak}</p>
+                <p className="text-emerald-300/70 text-[10px] font-bold uppercase tracking-wider">longest ever</p>
+              </div>
+            </div>
+            <button onClick={() => setShowCelebration(false)}
+              className="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400
+                text-gray-950 font-black text-sm transition-all cursor-pointer">
+              Keep it up! 💪
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Edit modal */}
       {editingProfile && (
@@ -292,14 +417,12 @@ const Home = () => {
         />
       )}
 
-      {/* ══ HERO BANNER ════════════════════════════════════════════════ */}
+      {/* ══ HERO BANNER ═══════════════════════════════════════════════════ */}
       <div className="relative rounded-3xl overflow-hidden h-[260px]">
         <img src="/hero-food.png" alt="food"
           className="w-full h-full object-cover object-top" />
         <div className="absolute inset-0 bg-gradient-to-r from-[#070a0e]/85 via-[#070a0e]/40 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#070a0e]/60 to-transparent" />
-
-        {/* Text */}
         <div className="absolute inset-0 flex flex-col justify-end p-8">
           {isGroup ? (
             <>
@@ -326,8 +449,6 @@ const Home = () => {
             </>
           ) : null}
         </div>
-
-        {/* Scan CTA pill */}
         <div className="absolute top-6 right-6">
           <button onClick={() => navigate('/scan')}
             className="flex items-center gap-2 px-5 py-2.5 rounded-full
@@ -339,10 +460,10 @@ const Home = () => {
         </div>
       </div>
 
-      {/* ══ MAIN GRID ══════════════════════════════════════════════════ */}
+      {/* ══ MAIN GRID ════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-3 gap-6">
 
-        {/* ── LEFT: Today's stats ─────────────────────────────────────── */}
+        {/* ── LEFT col ─────────────────────────────────────────────────── */}
         <div className="col-span-2 space-y-6">
 
           {/* Nutrition cards */}
@@ -354,18 +475,72 @@ const Home = () => {
               </span>
             </div>
             <div className="grid grid-cols-4 gap-4">
-              <NutritionCard
-                label="Calories" consumed={consumed.calories} target={avgTdee}
+              <NutritionCard label="Calories" consumed={consumed.calories} target={avgTdee}
                 unit="kcal" color="text-amber-400" barColor="bg-amber-500/70" />
-              <NutritionCard
-                label="Protein" consumed={consumed.protein} target={targetProtein}
+              <NutritionCard label="Protein" consumed={consumed.protein} target={targetProtein}
                 unit="g" color="text-blue-400" barColor="bg-blue-500/70" />
-              <NutritionCard
-                label="Carbs" consumed={consumed.carbs} target={targetCarbs}
+              <NutritionCard label="Carbs" consumed={consumed.carbs} target={targetCarbs}
                 unit="g" color="text-purple-400" barColor="bg-purple-500/70" />
-              <NutritionCard
-                label="Fat" consumed={consumed.fat} target={targetFat}
+              <NutritionCard label="Fat" consumed={consumed.fat} target={targetFat}
                 unit="g" color="text-rose-400" barColor="bg-rose-500/70" />
+            </div>
+          </div>
+
+          {/* ── Streak heatmap ── */}
+          <div className="glass rounded-3xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <h2 className="text-white font-bold text-base">Goal Streak</h2>
+                {currentStreak > 0 && (
+                  <span className="streak-fire px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30
+                    text-orange-400 text-xs font-black flex items-center gap-1">
+                    🔥 {currentStreak} day{currentStreak !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-4 text-xs">
+                <span className="text-gray-600">
+                  Longest: <span className="text-emerald-400 font-black">{longestStreak}</span>
+                </span>
+                <span className="text-gray-600">
+                  Total: <span className="text-white font-bold">{goalDays.length}</span> days
+                </span>
+              </div>
+            </div>
+
+            {/* Grid */}
+            <div className="flex gap-1 overflow-x-auto pb-1">
+              {heatmapCols.map((week, wi) => (
+                <div key={wi} className="flex flex-col gap-1">
+                  {week.map(day => (
+                    <div
+                      key={day.date}
+                      title={day.date}
+                      className={`w-3.5 h-3.5 rounded-sm transition-all duration-300 ${
+                        day.isToday
+                          ? day.active
+                            ? 'bg-orange-400 ring-1 ring-orange-300/60'
+                            : 'bg-white/10 ring-1 ring-white/20'
+                          : day.active
+                          ? 'bg-emerald-500 hover:bg-emerald-400'
+                          : 'bg-white/5 hover:bg-white/10'
+                      }`}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center justify-between mt-3 text-[10px] text-gray-600">
+              <span>{WEEKS} weeks</span>
+              <div className="flex items-center gap-1.5">
+                <span>Less</span>
+                {['bg-white/5','bg-emerald-700/60','bg-emerald-500','bg-orange-400'].map((c,i) => (
+                  <div key={i} className={`w-3 h-3 rounded-sm ${c}`} />
+                ))}
+                <span>More</span>
+              </div>
             </div>
           </div>
 
@@ -416,34 +591,28 @@ const Home = () => {
               const bmr = p.gender === 'Female'
                 ? 10 * p.weight + 6.25 * p.height - 5 * p.age - 161
                 : 10 * p.weight + 6.25 * p.height - 5 * p.age + 5;
-              const tdee  = Math.round(bmr * 1.375);
-              const bmi   = p.weight / ((p.height / 100) ** 2);
+              const tdee = Math.round(bmr * 1.375);
+              const bmi  = p.weight / ((p.height / 100) ** 2);
               return (
                 <div key={p.id} className="glass rounded-2xl overflow-hidden">
-                  {/* Profile header */}
                   <div className="bg-gradient-to-r from-emerald-900/30 to-transparent px-5 py-4 flex items-center gap-3 border-b border-white/5">
                     <span className="text-3xl">{p.avatar}</span>
                     <div className="flex-1">
                       <p className="text-white font-bold text-sm">{p.name}</p>
                       <p className="text-gray-500 text-xs">{p.age}y · {p.gender}</p>
                     </div>
-                    {/* Edit button */}
-                    <button
-                      onClick={() => setEditingProfile(p)}
-                      title="Edit profile"
+                    <button onClick={() => setEditingProfile(p)} title="Edit profile"
                       className="w-8 h-8 rounded-xl bg-white/6 hover:bg-emerald-500/20
                         border border-white/8 hover:border-emerald-500/40
                         flex items-center justify-center text-gray-500
-                        hover:text-emerald-400 transition-all cursor-pointer text-sm"
-                    >✏️</button>
+                        hover:text-emerald-400 transition-all cursor-pointer text-sm">✏️</button>
                   </div>
-                  {/* Stats */}
                   <div className="grid grid-cols-2 divide-x divide-y divide-white/5">
                     {[
-                      { l:'Weight', v:`${p.weight}`, u:'kg'       },
-                      { l:'Height', v:`${p.height}`, u:'cm'       },
+                      { l:'Weight', v:`${p.weight}`, u:'kg' },
+                      { l:'Height', v:`${p.height}`, u:'cm' },
                       { l:'BMI',    v:bmi.toFixed(1), u:bmi < 18.5?'Under':bmi<25?'Normal':'Over' },
-                      { l:'TDEE',   v:`${tdee}`,      u:'kcal/d'  },
+                      { l:'TDEE',   v:`${tdee}`,      u:'kcal/d' },
                     ].map(({l,v,u}) => (
                       <div key={l} className="px-4 py-3">
                         <p className="text-[10px] text-gray-600 uppercase tracking-widest">{l}</p>
@@ -457,7 +626,6 @@ const Home = () => {
             })
           )}
 
-          {/* Avg TDEE if group */}
           {isGroup && (
             <div className="glass rounded-2xl px-5 py-4">
               <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Group avg. TDEE</p>
@@ -472,3 +640,4 @@ const Home = () => {
 };
 
 export default Home;
+

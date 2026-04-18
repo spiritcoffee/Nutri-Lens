@@ -11,6 +11,7 @@ const LS_USER      = 'nutri-lens-user';
 const LS_PROFILES  = 'nutri-lens-profiles';
 const LS_ACTIVE    = 'nutri-lens-active';
 const LS_HISTORY   = 'nutri-lens-history';
+const LS_GOALDAYS  = 'nutri-lens-goaldays';
 
 /* ── Helpers ───────────────────────────────────────────────────────── */
 const load = <T,>(key: string, fallback: T): T => {
@@ -28,6 +29,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profiles, setProfiles]           = useState<NutriProfile[]>(() => load<NutriProfile[]>(LS_PROFILES, []));
   const [activeProfiles, setActiveState]  = useState<NutriProfile[]>(() => load<NutriProfile[]>(LS_ACTIVE, []));
   const [history, setHistory]             = useState<MealHistoryEntry[]>(() => load<MealHistoryEntry[]>(LS_HISTORY, []));
+  const [goalDays, setGoalDays]           = useState<string[]>(() => load<string[]>(LS_GOALDAYS, []));
 
   /* ── Auth ──────────────────────────────────────────────────────── */
   const login = useCallback((u: GoogleUser) => {
@@ -113,6 +115,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [],
   );
 
+  const markGoalDay = useCallback((dateStr: string) => {
+    setGoalDays(prev => {
+      if (prev.includes(dateStr)) return prev;
+      const next = [...prev, dateStr];
+      localStorage.setItem(LS_GOALDAYS, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -130,6 +141,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         clearActiveProfiles,
         history,
         addHistoryEntry,
+        goalDays,
+        markGoalDay,
       }}
     >
       {children}

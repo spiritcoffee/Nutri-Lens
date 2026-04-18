@@ -55,6 +55,9 @@ export interface AuthContextValue {
   clearActiveProfiles: () => void;
   /** Log of past generated and consumed meals */
   history: MealHistoryEntry[];
+  /** ISO date strings (YYYY-MM-DD) for days where all macro goals were satisfied */
+  goalDays: string[];
+  markGoalDay: (dateStr: string) => void;
   /** Record a new meal into the user's history */
   addHistoryEntry: (entry: Omit<MealHistoryEntry, 'id' | 'timestamp'>) => void;
 }
