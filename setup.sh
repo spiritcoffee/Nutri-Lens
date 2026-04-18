@@ -3,7 +3,7 @@
 #  Nutri-Lens · setup.sh
 #  Run once after cloning: bash setup.sh
 # ──────────────────────────────────────────────────────────────────────
-set -euo pipefail
+set -eu
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
 

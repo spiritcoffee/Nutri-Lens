@@ -267,9 +267,9 @@ const DetectedTag = ({ label, onRemove }: { label: string; onRemove: () => void 
 );
 
 const CheckCard = ({
-  name, emoji, checked, onToggle, highlight,
+  name, emoji, checked, onToggle, highlight, isSearching
 }: {
-  name: string; emoji: string; checked: boolean; onToggle: () => void; highlight?: boolean;
+  name: string; emoji: string; checked: boolean; onToggle: () => void; highlight?: boolean; isSearching?: boolean;
 }) => (
   <button type="button" onClick={onToggle}
     className={`flex items-center gap-2.5 px-3.5 py-3 rounded-2xl border text-sm
@@ -278,9 +278,10 @@ const CheckCard = ({
       ${checked
         ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200 shadow-sm shadow-emerald-900/30'
         : highlight
-        ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-300 ring-1 ring-emerald-500/20'
-        : 'border-white/7 bg-white/2 text-gray-400 hover:border-white/14 hover:bg-white/4 hover:text-gray-200'
-      }`}>
+        ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-300 ring-1 ring-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.15)] scale-[1.02]'
+        : 'glass glass-hover text-gray-400 hover:text-gray-200'
+      }
+      ${isSearching && !highlight && !checked ? 'opacity-25 saturate-50 pointer-events-none' : ''}`}>
     <span className="text-base w-6 text-center flex-shrink-0">{emoji}</span>
     <span className="flex-1 leading-tight text-xs font-semibold">{name}</span>
     {/* Checkbox visual */}
@@ -443,16 +444,18 @@ const Scan = () => {
     return name.toLowerCase().includes(searchLower);
   }, [searchLower]);
 
-  /* Quick search results count */
-  const searchResultCount = useMemo(() => {
-    if (!searchLower) return 0;
-    let count = 0;
+  /* Local search results */
+  const localItemsMatch = useMemo(() => {
+    if (!searchLower) return [];
+    const results: { name: string, emoji: string, catKey: string }[] = [];
     for (const cat of CATEGORIES) {
       for (const item of cat.items) {
-        if (item.name.toLowerCase().includes(searchLower)) count++;
+        if (item.name.toLowerCase().includes(searchLower)) {
+          results.push({ ...item, catKey: cat.key });
+        }
       }
     }
-    return count;
+    return results;
   }, [searchLower]);
 
   /* ── TF.js MobileNet detection ── */
@@ -514,198 +517,6 @@ const Scan = () => {
         <p className="text-gray-500 text-sm mt-1">
           Detect from a photo · select your ingredients · then generate personalised meals
         </p>
-      </div>
-
-      {/* ══ SEARCH BAR ════════════════════════════════════════════════ */}
-      <div className="mb-6 relative" ref={searchDropdownRef}>
-        <div className={`relative glass rounded-2xl transition-all duration-300 ${
-          searchFocused ? 'ring-2 ring-emerald-500/40 border-emerald-500/30' : ''
-        }`}>
-          <div className="flex items-center gap-3 px-5 py-4">
-            {/* Search icon */}
-            <svg className={`w-5 h-5 flex-shrink-0 transition-colors duration-200 ${
-              searchFocused ? 'text-emerald-400' : 'text-gray-600'
-            }`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round"
-                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-            </svg>
-
-            {/* Input */}
-            <input
-              id="ingredient-search"
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-              placeholder={hasApi
-                ? 'Search 86,000+ ingredients via Spoonacular...'
-                : 'Search ingredients... (e.g. tomato, chicken, turmeric)'}
-              className="flex-1 bg-transparent text-white text-sm font-medium
-                placeholder:text-gray-600 outline-none"
-            />
-
-            {/* API loading spinner */}
-            {apiLoading && (
-              <svg className="animate-spin w-4 h-4 text-emerald-400 flex-shrink-0"
-                fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-20" cx="12" cy="12" r="10"
-                  stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-80" fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-              </svg>
-            )}
-
-            {/* Clear button */}
-            {searchQuery && (
-              <button
-                onClick={() => { setSearchQuery(''); setApiResults([]); }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl
-                  bg-white/5 hover:bg-white/10 border border-white/8
-                  text-gray-400 hover:text-white text-xs font-semibold
-                  transition-all cursor-pointer">
-                <span>×</span> Clear
-              </button>
-            )}
-
-            {/* Result count badge */}
-            {searchLower && (
-              <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black ${
-                searchResultCount > 0 || apiResults.length > 0
-                  ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
-                  : 'bg-rose-500/15 border border-rose-500/30 text-rose-400'
-              }`}>
-                {searchResultCount + apiResults.length} found
-              </span>
-            )}
-
-            {/* Powered by Spoonacular badge */}
-            {hasApi && (
-              <span className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg
-                bg-emerald-950/50 border border-emerald-800/25 text-[9px] text-emerald-500/70
-                font-semibold flex-shrink-0">
-                ⚡ Spoonacular
-              </span>
-            )}
-          </div>
-
-          {/* Search tips bar */}
-          {searchFocused && !searchQuery && (
-            <div className="px-5 pb-4 flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] text-gray-700 font-semibold uppercase tracking-wider mr-1">Try:</span>
-              {['avocado', 'chicken breast', 'saffron', 'quinoa', 'mozzarella'].map(term => (
-                <button key={term}
-                  onMouseDown={e => { e.preventDefault(); setSearchQuery(term); }}
-                  className="px-2.5 py-1 rounded-lg bg-white/4 border border-white/6
-                    text-gray-500 hover:text-emerald-400 hover:border-emerald-500/30
-                    text-[10px] font-semibold transition-all cursor-pointer">
-                  {term}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ── API Autocomplete Dropdown ── */}
-        {searchFocused && searchQuery.trim().length >= 2 && (apiResults.length > 0 || apiLoading) && (
-          <div className="absolute left-0 right-0 top-full mt-2 z-40
-            glass rounded-2xl border border-white/10 shadow-2xl shadow-black/60
-            overflow-hidden animate-[fadeIn_0.15s_ease]" style={{ '--tw-backdrop-blur': 'blur(24px)' } as React.CSSProperties}>
-
-            {/* Header */}
-            <div className="px-4 py-2.5 border-b border-white/6 flex items-center justify-between">
-              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
-                Spoonacular Results
-              </span>
-              {apiResults.length > 0 && (
-                <span className="text-[10px] text-emerald-500/70 font-semibold">
-                  {apiResults.length} suggestions
-                </span>
-              )}
-            </div>
-
-            {/* Loading state */}
-            {apiLoading && apiResults.length === 0 && (
-              <div className="px-4 py-6 flex items-center justify-center gap-3">
-                <svg className="animate-spin w-4 h-4 text-emerald-400"
-                  fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-20" cx="12" cy="12" r="10"
-                    stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-80" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                </svg>
-                <span className="text-gray-500 text-xs">Searching Spoonacular...</span>
-              </div>
-            )}
-
-            {/* Results list */}
-            {apiResults.map(item => {
-              const capitalized = item.name.charAt(0).toUpperCase() + item.name.slice(1);
-              const alreadyAdded = apiIngredients.has(capitalized) || allItems.includes(capitalized);
-              return (
-                <button
-                  key={item.id}
-                  onMouseDown={e => {
-                    e.preventDefault();
-                    if (!alreadyAdded) addApiIngredient(item.name);
-                  }}
-                  disabled={alreadyAdded}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-left
-                    transition-all duration-100
-                    ${alreadyAdded
-                      ? 'opacity-40 cursor-not-allowed'
-                      : 'hover:bg-emerald-500/8 cursor-pointer'}`}>
-                  {/* Ingredient image */}
-                  <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/8
-                    overflow-hidden flex-shrink-0 flex items-center justify-center">
-                    {item.image ? (
-                      <img
-                        src={ingredientImageUrl(item.image)}
-                        alt={item.name}
-                        className="w-full h-full object-cover"
-                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                      />
-                    ) : (
-                      <span className="text-lg">🥘</span>
-                    )}
-                  </div>
-
-                  {/* Name + aisle */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-semibold capitalize truncate">
-                      {item.name}
-                    </p>
-                    {item.aisle && (
-                      <p className="text-gray-600 text-[10px] truncate">{item.aisle}</p>
-                    )}
-                  </div>
-
-                  {/* Add / Added badge */}
-                  {alreadyAdded ? (
-                    <span className="text-[10px] text-emerald-600 font-bold px-2 py-0.5
-                      rounded bg-emerald-500/10">Added</span>
-                  ) : (
-                    <span className="text-[10px] text-emerald-400 font-bold px-2 py-0.5
-                      rounded bg-emerald-500/10 group-hover:bg-emerald-500/20">+ Add</span>
-                  )}
-                </button>
-              );
-            })}
-
-            {/* Footer */}
-            <div className="px-4 py-2 border-t border-white/5 flex items-center justify-between">
-              <span className="text-[9px] text-gray-700">Click to add to your ingredients</span>
-              <span className="text-[9px] text-emerald-700 font-semibold">Powered by Spoonacular API</span>
-            </div>
-          </div>
-        )}
-
-        {/* Active search info */}
-        {searchLower && searchResultCount > 0 && !searchFocused && (
-          <p className="text-emerald-500/70 text-xs mt-2 ml-1">
-            ✨ Matching items highlighted below — click to add them to your selection
-          </p>
-        )}
       </div>
 
       {/* ══ SECTION 1 — PHOTO UPLOAD ══════════════════════════════════ */}
@@ -855,6 +666,239 @@ const Scan = () => {
         </div>
       </div>
 
+      {/* ══ SEARCH BAR ════════════════════════════════════════════════ */}
+      <div className="mb-6 relative z-50" ref={searchDropdownRef}>
+        <div className={`relative glass rounded-2xl transition-all duration-300 ${
+          searchFocused ? 'ring-2 ring-emerald-500/40 border-emerald-500/30' : ''
+        }`}>
+          <div className="flex items-center gap-3 px-5 py-4">
+            {/* Search icon */}
+            <svg className={`w-5 h-5 flex-shrink-0 transition-colors duration-200 ${
+              searchFocused ? 'text-emerald-400' : 'text-gray-600'
+            }`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round"
+                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+
+            {/* Input */}
+            <input
+              id="ingredient-search"
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+              placeholder={hasApi
+                ? 'Search 86,000+ ingredients via Spoonacular...'
+                : 'Search ingredients... (e.g. tomato, chicken, turmeric)'}
+              className="flex-1 bg-transparent text-white text-sm font-medium
+                placeholder:text-gray-600 outline-none"
+            />
+
+            {/* API loading spinner */}
+            {apiLoading && (
+              <svg className="animate-spin w-4 h-4 text-emerald-400 flex-shrink-0"
+                fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-20" cx="12" cy="12" r="10"
+                  stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-80" fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              </svg>
+            )}
+
+            {/* Clear button */}
+            {searchQuery && (
+              <button
+                onClick={() => { setSearchQuery(''); setApiResults([]); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl
+                  bg-white/5 hover:bg-white/10 border border-white/8
+                  text-gray-400 hover:text-white text-xs font-semibold
+                  transition-all cursor-pointer">
+                <span>×</span> Clear
+              </button>
+            )}
+
+            {/* Result count badge */}
+            {searchLower && (
+              <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black ${
+                localItemsMatch.length > 0 || apiResults.length > 0
+                  ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+                  : 'bg-rose-500/15 border border-rose-500/30 text-rose-400'
+              }`}>
+                {localItemsMatch.length + apiResults.length} found
+              </span>
+            )}
+
+            {/* Powered by Spoonacular badge */}
+            {hasApi && (
+              <span className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-lg
+                bg-emerald-950/50 border border-emerald-800/25 text-[9px] text-emerald-500/70
+                font-semibold flex-shrink-0">
+                ⚡ Spoonacular
+              </span>
+            )}
+          </div>
+
+          {/* Search tips bar */}
+          {searchFocused && !searchQuery && (
+            <div className="px-5 pb-4 flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] text-gray-700 font-semibold uppercase tracking-wider mr-1">Try:</span>
+              {['avocado', 'chicken breast', 'saffron', 'quinoa', 'mozzarella'].map(term => (
+                <button key={term}
+                  onMouseDown={e => { e.preventDefault(); setSearchQuery(term); }}
+                  className="px-2.5 py-1 rounded-lg bg-white/4 border border-white/6
+                    text-gray-500 hover:text-emerald-400 hover:border-emerald-500/30
+                    text-[10px] font-semibold transition-all cursor-pointer">
+                  {term}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {searchFocused && searchQuery.trim().length >= 2 && (apiResults.length > 0 || apiLoading || localItemsMatch.length > 0) && (
+          <div className="absolute left-0 right-0 top-full mt-3 z-[100]
+            bg-[#070a0e] rounded-2xl border border-white/10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)]
+            overflow-hidden animate-[fadeIn_0.15s_ease]">
+
+            {/* Local Results */}
+            {localItemsMatch.length > 0 && (
+              <div className="border-b border-white/6 pb-1">
+                <div className="px-4 py-2 mt-1 flex items-center justify-between">
+                  <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
+                    Quick Add (Local)
+                  </span>
+                  <span className="text-[10px] text-emerald-500/70 font-semibold">
+                    {localItemsMatch.length} found
+                  </span>
+                </div>
+                {localItemsMatch.map(item => {
+                  const alreadySelected = selected[item.catKey]?.has(item.name);
+                  return (
+                    <button
+                      key={item.name}
+                      onMouseDown={e => {
+                        e.preventDefault();
+                        toggleItem(item.catKey, item.name);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left
+                        transition-all duration-100 hover:bg-emerald-500/8 cursor-pointer">
+                      <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/8
+                        flex items-center justify-center text-base flex-shrink-0">
+                        {item.emoji}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold capitalize truncate ${
+                          alreadySelected ? 'text-emerald-400' : 'text-white'
+                        }`}>
+                          {item.name}
+                        </p>
+                      </div>
+                      {alreadySelected && (
+                        <span className="text-[10px] text-emerald-600 font-bold px-2 py-0.5
+                          rounded bg-emerald-500/10">Added</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* API Header */}
+            {(apiResults.length > 0 || apiLoading) && (
+              <div className="px-4 py-2.5 border-b border-white/6 flex items-center justify-between">
+                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                  Spoonacular Results
+                </span>
+                {apiResults.length > 0 && (
+                  <span className="text-[10px] text-emerald-500/70 font-semibold">
+                    {apiResults.length} suggestions
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Loading state */}
+            {apiLoading && apiResults.length === 0 && (
+              <div className="px-4 py-6 flex items-center justify-center gap-3">
+                <svg className="animate-spin w-4 h-4 text-emerald-400"
+                  fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-20" cx="12" cy="12" r="10"
+                    stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-80" fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                </svg>
+                <span className="text-gray-500 text-xs">Searching Spoonacular...</span>
+              </div>
+            )}
+
+            {/* Results list */}
+            {apiResults.map(item => {
+              const capitalized = item.name.charAt(0).toUpperCase() + item.name.slice(1);
+              const alreadyAdded = apiIngredients.has(capitalized) || allItems.includes(capitalized);
+              return (
+                <button
+                  key={item.id}
+                  onMouseDown={e => {
+                    e.preventDefault();
+                    if (!alreadyAdded) addApiIngredient(item.name);
+                  }}
+                  disabled={alreadyAdded}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-left
+                    transition-all duration-100
+                    ${alreadyAdded
+                      ? 'opacity-40 cursor-not-allowed'
+                      : 'hover:bg-emerald-500/8 cursor-pointer'}`}>
+                  {/* Ingredient image */}
+                  <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/8
+                    overflow-hidden flex-shrink-0 flex items-center justify-center">
+                    {item.image ? (
+                      <img
+                        src={ingredientImageUrl(item.image)}
+                        alt={item.name}
+                        className="w-full h-full object-cover"
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : (
+                      <span className="text-lg">🥘</span>
+                    )}
+                  </div>
+
+                  {/* Name */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-semibold capitalize truncate">
+                      {item.name}
+                    </p>
+                  </div>
+
+                  {/* Add / Added badge */}
+                  {alreadyAdded ? (
+                    <span className="text-[10px] text-emerald-600 font-bold px-2 py-0.5
+                      rounded bg-emerald-500/10">Added</span>
+                  ) : (
+                    <span className="text-[10px] text-emerald-400 font-bold px-2 py-0.5
+                      rounded bg-emerald-500/10 group-hover:bg-emerald-500/20">+ Add</span>
+                  )}
+                </button>
+              );
+            })}
+
+            {/* Footer */}
+            <div className="px-4 py-2 border-t border-white/5 flex items-center justify-between">
+              <span className="text-[9px] text-gray-700">Click to add to your ingredients</span>
+              <span className="text-[9px] text-emerald-700 font-semibold">Powered by Spoonacular API</span>
+            </div>
+          </div>
+        )}
+
+        {/* Active search info */}
+        {searchLower && localItemsMatch.length > 0 && !searchFocused && (
+          <p className="text-emerald-500/70 text-xs mt-2 ml-1">
+            ✨ Matching items highlighted below — click to add them to your selection
+          </p>
+        )}
+      </div>
+
       {/* ══ API INGREDIENTS (from Spoonacular search) ══════════════════ */}
       {apiIngredients.size > 0 && (
         <div className="glass rounded-3xl p-7 mb-6 border border-emerald-500/15">
@@ -906,16 +950,9 @@ const Scan = () => {
       {CATEGORIES.map(cat => {
         const catSelected = selected[cat.key];
         const count = catSelected.size;
-        /* Filter items if searching */
-        const filteredItems = searchLower
-          ? cat.items.filter(i => i.name.toLowerCase().includes(searchLower))
-          : cat.items;
-
-        /* If searching and no matches in this category, collapse it */
-        if (searchLower && filteredItems.length === 0) return null;
 
         return (
-          <div key={cat.key} className="glass rounded-3xl p-7 mb-6">
+          <div key={cat.key} className="glass rounded-3xl p-7 mb-6 transition-all duration-300">
             <SectionHeader
               icon={cat.icon}
               title={cat.title}
@@ -926,10 +963,11 @@ const Scan = () => {
               onClear={() => clearCategory(cat.key)}
             />
             <div className="grid grid-cols-3 gap-2.5 lg:grid-cols-4">
-              {(searchLower ? filteredItems : cat.items).map(({ name, emoji }) => (
+              {cat.items.map(({ name, emoji }) => (
                 <CheckCard key={name} name={name} emoji={emoji}
                   checked={catSelected.has(name)}
                   highlight={searchLower ? matchesSearch(name) : false}
+                  isSearching={!!searchLower}
                   onToggle={() => toggleItem(cat.key, name)} />
               ))}
             </div>

@@ -63,6 +63,21 @@ export async function autocompleteIngredients(
     }
 
     const data = (await res.json()) as SpoonacularIngredient[];
+    
+    // Sort to prioritize fundamental ingredients and avoid compound/dish-like results
+    data.sort((a, b) => {
+      const qLower = query.toLowerCase();
+      const aName = a.name.toLowerCase();
+      const bName = b.name.toLowerCase();
+      
+      // 1. Exact matches always come first
+      if (aName === qLower) return -1;
+      if (bName === qLower) return 1;
+      
+      // 2. Shorter strings usually represent raw/base ingredients (egg vs egg noodles)
+      return a.name.length - b.name.length;
+    });
+
     return data;
   } catch (err) {
     console.warn('Spoonacular autocomplete error:', err);
@@ -139,4 +154,38 @@ export function debounce<T extends (...args: unknown[]) => Promise<unknown>>(
     clearTimeout(timer);
     timer = setTimeout(() => { void fn(...args); }, delayMs);
   };
+}
+
+/* ── Fetch Real Recipes for AI RAG ── */
+
+/**
+ * Fetch a list of recommended real recipes from Spoonacular based on ingredients.
+ * Returns up to 15 recipes with full nutrition and instructions.
+ * This is used to feed the AI (Llama 3) with real data to select from.
+ */
+export async function fetchSpoonacularCandidates(ingredients: string[], number = 15): Promise<any[]> {
+  if (!isSpoonacularConfigured() || ingredients.length === 0) return [];
+
+  try {
+    const url = new URL(`${BASE}/recipes/complexSearch`);
+    url.searchParams.set('apiKey', API_KEY!);
+    url.searchParams.set('includeIngredients', ingredients.join(','));
+    url.searchParams.set('addRecipeInformation', 'true');
+    url.searchParams.set('addRecipeNutrition', 'true');
+    url.searchParams.set('fillIngredients', 'true');
+    url.searchParams.set('instructionsRequired', 'true');
+    url.searchParams.set('number', String(number));
+
+    const res = await fetch(url.toString());
+    if (!res.ok) {
+      console.warn(`Spoonacular complexSearch failed: ${res.status}`);
+      return [];
+    }
+
+    const data = await res.json();
+    return data.results || [];
+  } catch (err) {
+    console.warn('Spoonacular complexSearch error:', err);
+    return [];
+  }
 }

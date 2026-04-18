@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Groq from 'groq-sdk';
 import { useAuth } from '../context/useAuth';
 import { estimateMacros, type Macros } from '../data/nutritionLookup';
+import { fetchSpoonacularCandidates } from '../data/spoonacularApi';
 
 /* ── Types ──────────────────────────────────────────────────────────── */
 interface Meal {
@@ -234,7 +235,29 @@ const Results = () => {
     if (!GROQ_KEY) return;
     setLoading(true); setError(null);
     try {
-      setPhase('Analysing your ingredients…');
+      setPhase('Fetching real recipes from Spoonacular…');
+      const candidates = await fetchSpoonacularCandidates(ingredients, 15);
+      
+      const candidateText = candidates.map(c => {
+        let text = `- Title: ${c.title}\n`;
+        text += `  Cook Time: ${c.readyInMinutes}m, Health Score: ${c.healthScore}\n`;
+        if (c.nutrition && c.nutrition.nutrients) {
+          const cals = Math.round(c.nutrition.nutrients.find((n:any) => n.name==='Calories')?.amount || 0);
+          const pro = Math.round(c.nutrition.nutrients.find((n:any) => n.name==='Protein')?.amount || 0);
+          const car = Math.round(c.nutrition.nutrients.find((n:any) => n.name==='Carbohydrates')?.amount || 0);
+          const fat = Math.round(c.nutrition.nutrients.find((n:any) => n.name==='Fat')?.amount || 0);
+          text += `  Macros: ${cals} kcal, ${pro}g protein, ${car}g carbs, ${fat}g fat\n`;
+        }
+        if (c.extendedIngredients) {
+          text += `  Ingredients: ${c.extendedIngredients.map((i:any) => i.original).join(' | ')}\n`;
+        }
+        if (c.analyzedInstructions && c.analyzedInstructions[0]) {
+          text += `  Instructions: ${c.analyzedInstructions[0].steps.map((s:any) => s.step).join(' ')}\n`;
+        }
+        return text;
+      }).join('\n');
+
+      setPhase('Analysing your ingredients & recipes…');
       await new Promise(r => setTimeout(r, 400));
       setPhase('Building personalised meal plan…');
 
@@ -244,23 +267,22 @@ const Results = () => {
         (p.dietaryPreferences?.length ? `, diet: ${p.dietaryPreferences.join(', ')}` : '')
       ).join('\n');
 
-      const prompt = `You are an expert Indian nutritionist and chef.
-Based on the profiles and ingredients below, suggest exactly 6 healthy Indian meals.
+      const prompt = `You are an expert nutritionist and chef.
+Based on the PROFILES and the REAL RECIPES provided below, select exactly 6 recipes that best fit the users' goals.
 
 USER PROFILES:
 ${profileSummaries || '• No specific profile provided'}
 
-AVAILABLE INGREDIENTS: ${ingredients.join(', ')}
-
-RAW INGREDIENT MACROS (combined): ${estimatedMacros.calories} kcal, ${estimatedMacros.protein}g protein, ${estimatedMacros.carbs}g carbs, ${estimatedMacros.fat}g fat
+CANDIDATE RECIPES (from Spoonacular Database):
+${candidateText ? candidateText : 'No database recipes found. Fall back to your own recipe generation based on these ingredients: ' + ingredients.join(', ')}
 
 STRICT RULES:
-- Only use ingredients from the list above — no extras
-- Optimise for each person's stated goal
-- Respect all dietary preferences (vegan = no eggs/dairy, vegetarian = no meat, etc.)
-- If multiple profiles, balance the meal for everyone
-- Health score reflects nutritional quality, not just low calories
-- Provide realistic Indian home-cooking recipes
+- If Candidate Recipes are provided, ONLY choose from them. DO NOT INVENT RECIPES.
+- Select the 6 recipes that best align with the given user goals (e.g., high protein for muscle gain).
+- Extract their precise macros, cook time, ingredients, and instructions from the provided text.
+- If no candidate recipes were found, generate 6 healthy Indian home-cooking recipes using the available ingredients.
+- Health score must be a decimal out of 5.0 (map Spoonacular's 0-100 score to 1.0-5.0).
+- Provide practical tips for cooking or meeting the nutrition goals.
 
 Respond with ONLY this JSON (no markdown, no explanation):
 {
