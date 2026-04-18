@@ -23,12 +23,18 @@ export interface AuthContextValue {
   login: (user: GoogleUser) => void;
   logout: () => void;
   isAuthenticated: boolean;
+  /** All saved nutrition profiles for this Google account */
   profiles: NutriProfile[];
-  activeProfile: NutriProfile | null;
+  /** Profiles currently selected for this session (can be multiple) */
+  activeProfiles: NutriProfile[];
   addProfile: (p: NutriProfile) => void;
   deleteProfile: (id: string) => void;
-  setActiveProfile: (p: NutriProfile) => void;
-  clearActiveProfile: () => void;
+  /** Toggle a profile in/out of the active selection */
+  toggleActiveProfile: (p: NutriProfile) => void;
+  /** Replace the entire active selection */
+  setActiveProfiles: (profiles: NutriProfile[]) => void;
+  /** Clear all active profiles (go back to selector) */
+  clearActiveProfiles: () => void;
 }
 
 /* ── Context object (no components here — satisfies react-refresh) ── */

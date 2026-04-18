@@ -9,7 +9,7 @@ const navItems = [
 ];
 
 const RootLayout = () => {
-  const { user, logout, activeProfile, clearActiveProfile } = useAuth();
+  const { user, logout, activeProfiles, clearActiveProfiles } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -31,10 +31,14 @@ const RootLayout = () => {
   };
 
   const handleSwitchProfile = () => {
-    clearActiveProfile();
+    clearActiveProfiles();
     setMenuOpen(false);
     navigate('/profile-select', { replace: true });
   };
+
+  /* ── Stacked avatar preview (up to 3 + overflow count) ─────────── */
+  const visibleProfiles = activeProfiles.slice(0, 3);
+  const overflowCount   = activeProfiles.length - 3;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
@@ -71,21 +75,42 @@ const RootLayout = () => {
               ))}
             </ul>
 
-            {/* Active profile avatar + dropdown */}
-            {user && activeProfile && (
+            {/* Stacked avatars + dropdown */}
+            {user && activeProfiles.length > 0 && (
               <div className="relative ml-3" ref={menuRef}>
                 <button
                   id="btn-avatar-menu"
                   onClick={() => setMenuOpen((o) => !o)}
-                  className="flex items-center gap-2 rounded-full pl-2 pr-3 py-1 bg-gray-800 hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
+                  className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 bg-gray-800 hover:bg-gray-700 transition-colors duration-200 cursor-pointer"
                 >
-                  {/* Active profile emoji */}
-                  <span className="w-8 h-8 rounded-full flex items-center justify-center text-xl bg-gray-700 ring-2 ring-green-500/50">
-                    {activeProfile.avatar}
+                  {/* Stacked emoji avatars */}
+                  <span className="flex -space-x-2">
+                    {visibleProfiles.map((p, i) => (
+                      <span
+                        key={p.id}
+                        style={{ zIndex: visibleProfiles.length - i }}
+                        className="w-8 h-8 rounded-full bg-gray-700 border-2 border-gray-800 flex items-center justify-center text-lg ring-1 ring-green-500/40"
+                      >
+                        {p.avatar}
+                      </span>
+                    ))}
+                    {overflowCount > 0 && (
+                      <span
+                        style={{ zIndex: 0 }}
+                        className="w-8 h-8 rounded-full bg-gray-900 border-2 border-gray-800 flex items-center justify-center text-xs font-bold text-green-400 ring-1 ring-green-500/40"
+                      >
+                        +{overflowCount}
+                      </span>
+                    )}
                   </span>
-                  <span className="text-sm font-medium text-white max-w-[100px] truncate hidden sm:block">
-                    {activeProfile.name.split(' ')[0]}
+
+                  {/* Name — first profile or "X people" */}
+                  <span className="text-sm font-medium text-white hidden sm:block">
+                    {activeProfiles.length === 1
+                      ? activeProfiles[0].name.split(' ')[0]
+                      : `${activeProfiles.length} people`}
                   </span>
+
                   <svg
                     className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${menuOpen ? 'rotate-180' : ''}`}
                     viewBox="0 0 16 16"
@@ -101,13 +126,25 @@ const RootLayout = () => {
 
                 {/* Dropdown */}
                 {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 rounded-xl border border-gray-700 bg-gray-900 shadow-xl shadow-black/40 overflow-hidden">
-                    {/* Profile info */}
-                    <div className="px-4 py-3 border-b border-gray-800 flex items-center gap-3">
-                      <span className="text-2xl">{activeProfile.avatar}</span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-white truncate">{activeProfile.name}</p>
-                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  <div className="absolute right-0 mt-2 w-60 rounded-xl border border-gray-700 bg-gray-900 shadow-xl shadow-black/40 overflow-hidden">
+
+                    {/* Active profiles list */}
+                    <div className="px-4 py-3 border-b border-gray-800">
+                      <p className="text-xs text-gray-500 uppercase tracking-widest mb-2 font-semibold">
+                        Tracking for
+                      </p>
+                      <div className="flex flex-col gap-1.5">
+                        {activeProfiles.map((p) => (
+                          <div key={p.id} className="flex items-center gap-2">
+                            <span className="text-xl">{p.avatar}</span>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-white truncate">{p.name}</p>
+                              <p className="text-xs text-gray-500">
+                                {p.age}y · {p.gender} · {p.weight}kg
+                              </p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
@@ -117,7 +154,7 @@ const RootLayout = () => {
                       onClick={() => setMenuOpen(false)}
                       className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
                     >
-                      <span>👤</span> My Stats
+                      <span>📊</span> Nutrition Stats
                     </NavLink>
 
                     <button
@@ -125,7 +162,7 @@ const RootLayout = () => {
                       onClick={handleSwitchProfile}
                       className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer"
                     >
-                      <span>🔀</span> Switch Profile
+                      <span>🔀</span> Switch Profiles
                     </button>
 
                     <div className="border-t border-gray-800" />
@@ -135,7 +172,7 @@ const RootLayout = () => {
                       onClick={handleLogout}
                       className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-gray-800 hover:text-red-300 transition-colors cursor-pointer"
                     >
-                      <span>🚪</span> Sign out
+                      <span>🚪</span> Sign Out
                     </button>
                   </div>
                 )}

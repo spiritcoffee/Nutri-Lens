@@ -6,13 +6,12 @@ import {
   type ReactNode,
 } from 'react';
 import { AuthContext } from './authContext';
-
-/* ── Types (re-exported so consumers can import from one place) ────── */
-export type { GoogleUser, NutriProfile, AuthContextValue } from './authContext';
-
-/* ── Helpers ────────────────────────────────────────────────────────── */
 import type { GoogleUser, NutriProfile } from './authContext';
 
+/* ── Re-export types so consumers can import from one place ─────────── */
+export type { GoogleUser, NutriProfile, AuthContextValue } from './authContext';
+
+/* ── Storage helpers ─────────────────────────────────────────────────── */
 const profilesKey = (sub: string) => `nutriLensProfiles:${sub}`;
 const activeKey   = (sub: string) => `nutriLensActive:${sub}`;
 
@@ -26,16 +25,18 @@ const loadProfiles = (sub: string): NutriProfile[] => {
 const saveProfiles = (sub: string, list: NutriProfile[]) =>
   localStorage.setItem(profilesKey(sub), JSON.stringify(list));
 
-const loadActive = (sub: string): NutriProfile | null => {
+const loadActiveProfiles = (sub: string): NutriProfile[] => {
   try {
     const raw = localStorage.getItem(activeKey(sub));
-    return raw ? (JSON.parse(raw) as NutriProfile) : null;
-  } catch { return null; }
+    return raw ? (JSON.parse(raw) as NutriProfile[]) : [];
+  } catch { return []; }
 };
 
-const saveActive = (sub: string, p: NutriProfile | null) => {
-  if (p) localStorage.setItem(activeKey(sub), JSON.stringify(p));
-  else   localStorage.removeItem(activeKey(sub));
+const saveActiveProfiles = (sub: string, list: NutriProfile[]) => {
+  if (list.length > 0)
+    localStorage.setItem(activeKey(sub), JSON.stringify(list));
+  else
+    localStorage.removeItem(activeKey(sub));
 };
 
 /* ── Provider ───────────────────────────────────────────────────────── */
@@ -50,20 +51,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profiles, setProfiles] = useState<NutriProfile[]>(() =>
     user ? loadProfiles(user.sub) : []
   );
-  const [activeProfile, setActiveProfileState] = useState<NutriProfile | null>(() =>
-    user ? loadActive(user.sub) : null
+
+  const [activeProfiles, setActiveProfilesState] = useState<NutriProfile[]>(() =>
+    user ? loadActiveProfiles(user.sub) : []
   );
 
-  // Keep a ref in sync with user via effect (not during render)
+  // Ref so callbacks always read current user without stale closures
   const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);
 
+  /* ── Auth ──────────────────────────────────────────────────────── */
   const login = useCallback((googleUser: GoogleUser) => {
     sessionStorage.setItem('nutriLensUser', JSON.stringify(googleUser));
     userRef.current = googleUser;
     setUser(googleUser);
     setProfiles(loadProfiles(googleUser.sub));
-    setActiveProfileState(loadActive(googleUser.sub));
+    setActiveProfilesState(loadActiveProfiles(googleUser.sub));
   }, []);
 
   const logout = useCallback(() => {
@@ -71,9 +74,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     userRef.current = null;
     setUser(null);
     setProfiles([]);
-    setActiveProfileState(null);
+    setActiveProfilesState([]);
   }, []);
 
+  /* ── Profile CRUD ──────────────────────────────────────────────── */
   const addProfile = useCallback((p: NutriProfile) => {
     const u = userRef.current;
     if (!u) return;
@@ -87,30 +91,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const deleteProfile = useCallback((id: string) => {
     const u = userRef.current;
     if (!u) return;
+    // Remove from profiles list
     setProfiles((prev) => {
       const next = prev.filter((p) => p.id !== id);
       saveProfiles(u.sub, next);
       return next;
     });
-    setActiveProfileState((prev) => {
-      if (prev?.id === id) {
-        saveActive(u.sub, null);
-        return null;
-      }
-      return prev;
+    // Also remove from active selection if it's there
+    setActiveProfilesState((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      saveActiveProfiles(u.sub, next);
+      return next;
     });
   }, []);
 
-  const setActiveProfile = useCallback((p: NutriProfile) => {
+  /* ── Active profile selection ──────────────────────────────────── */
+  const toggleActiveProfile = useCallback((p: NutriProfile) => {
     const u = userRef.current;
-    if (u) saveActive(u.sub, p);
-    setActiveProfileState(p);
+    if (!u) return;
+    setActiveProfilesState((prev) => {
+      const isSelected = prev.some((ap) => ap.id === p.id);
+      const next = isSelected
+        ? prev.filter((ap) => ap.id !== p.id)   // deselect
+        : [...prev, p];                           // select
+      saveActiveProfiles(u.sub, next);
+      return next;
+    });
   }, []);
 
-  const clearActiveProfile = useCallback(() => {
+  const setActiveProfiles = useCallback((list: NutriProfile[]) => {
     const u = userRef.current;
-    if (u) saveActive(u.sub, null);
-    setActiveProfileState(null);
+    if (u) saveActiveProfiles(u.sub, list);
+    setActiveProfilesState(list);
+  }, []);
+
+  const clearActiveProfiles = useCallback(() => {
+    const u = userRef.current;
+    if (u) saveActiveProfiles(u.sub, []);
+    setActiveProfilesState([]);
   }, []);
 
   return (
@@ -121,11 +139,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         logout,
         isAuthenticated: user !== null,
         profiles,
-        activeProfile,
+        activeProfiles,
         addProfile,
         deleteProfile,
-        setActiveProfile,
-        clearActiveProfile,
+        toggleActiveProfile,
+        setActiveProfiles,
+        clearActiveProfiles,
       }}
     >
       {children}
