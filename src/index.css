@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+/* ── Profile selector page ─────────────────────────────────────────── */
+.profile-selector-bg {
+  background: #0a0a0f;
+}
+
+/* Shimmer animation on profile card hover */
+.profile-card {
+  animation: fadeSlideIn 0.4s ease both;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
