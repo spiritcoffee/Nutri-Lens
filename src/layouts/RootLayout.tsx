@@ -31,8 +31,6 @@ const RootLayout = () => {
   const visibleAvatars = activeProfiles.slice(0, 3);
   const overflow = activeProfiles.length - 3;
 
-  const pageTitle = NAV.find(n => location.pathname.startsWith(n.to))?.label ?? 'Nutri-Lens';
-
   return (
     <div className="min-h-screen bg-[#070a0e] text-white flex flex-col">
 
@@ -66,9 +64,6 @@ const RootLayout = () => {
               </NavLink>
             ))}
           </nav>
-
-          {/* ── Page title ── */}
-          <span className="hidden xl:block text-gray-600 text-sm font-medium">{pageTitle}</span>
 
           {/* ── Profile avatar pill ── */}
           {user && activeProfiles.length > 0 && (

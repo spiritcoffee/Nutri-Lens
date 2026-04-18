@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import * as mobilenet from '@tensorflow-models/mobilenet';
-import '@tensorflow/tfjs';
+import { motion } from 'framer-motion';
+import Groq from 'groq-sdk';
+const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY as string | undefined;
 import {
   autocompleteIngredients,
   ingredientImageUrl,
@@ -220,34 +221,7 @@ const CATEGORIES: CategoryDef[] = [
   },
 ];
 
-const CLASS_MAP: Record<string, string> = {
-  banana:'Banana', apple:'Apple', orange:'Orange', lemon:'Lemon',
-  strawberry:'Strawberry', pineapple:'Pineapple', mango:'Mango',
-  broccoli:'Broccoli', carrot:'Carrot', cucumber:'Cucumber',
-  tomato:'Tomato', onion:'Onion', garlic:'Garlic',
-  potato:'Potato', 'sweet potato':'Sweet Potato', corn:'Corn',
-  mushroom:'Mushroom', spinach:'Spinach', cabbage:'Cabbage',
-  cauliflower:'Cauliflower', pepper:'Bell Pepper', eggplant:'Eggplant',
-  egg:'Eggs', chicken:'Chicken', beef:'Beef', pork:'Pork',
-  fish:'Fish', shrimp:'Shrimp', salmon:'Salmon',
-  bread:'Bread', rice:'Rice', noodle:'Noodles', pasta:'Pasta',
-  milk:'Milk', cheese:'Cheese', butter:'Butter', yogurt:'Curd',
-  lentil:'Lentils', bean:'Beans', pea:'Peas',
-  ginger:'Ginger', coriander:'Coriander Powder', chili:'Red Chilli Powder',
-  paneer:'Paneer',
-};
-
-function mapPredictions(preds: { className: string; probability: number }[]): string[] {
-  const out: string[] = [];
-  for (const p of preds) {
-    if (p.probability < 0.08) continue;
-    const lower = p.className.toLowerCase();
-    for (const [key, label] of Object.entries(CLASS_MAP)) {
-      if (lower.includes(key) && !out.includes(label)) out.push(label);
-    }
-  }
-  return out;
-}
+/* ── Removed obsolete CLASS_MAP since LLaMA Vision handles exact categorizations natively ── */
 
 /* ══ SUB-COMPONENTS ══════════════════════════════════════════════════════ */
 
@@ -444,62 +418,164 @@ const Scan = () => {
     return name.toLowerCase().includes(searchLower);
   }, [searchLower]);
 
-  /* Local search results */
-  const localItemsMatch = useMemo(() => {
-    if (!searchLower) return [];
-    const results: { name: string, emoji: string, catKey: string }[] = [];
+  /* Quick search results count */
+  const searchResultCount = useMemo(() => {
+    if (!searchLower) return 0;
+    let count = 0;
     for (const cat of CATEGORIES) {
       for (const item of cat.items) {
-        if (item.name.toLowerCase().includes(searchLower)) {
-          results.push({ ...item, catKey: cat.key });
-        }
+        if (item.name.toLowerCase().includes(searchLower)) count++;
       }
     }
-    return results;
+    return count;
   }, [searchLower]);
 
-  /* ── TF.js MobileNet detection ── */
-  const runDetection = useCallback(async (src: string) => {
+  /* ── Groq LLaMA 3.2 Vision Model detection ── */
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+
+  const runDetection = useCallback(async (file: File) => {
     setDetecting(true); setDetectError(null);
     try {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.src = src;
-      await new Promise<void>((res, rej) => {
-        img.onload = () => res();
-        img.onerror = () => rej(new Error('Image load failed'));
+      if (!GROQ_KEY) throw new Error('VITE_GROQ_API_KEY is not configured in .env.local');
+
+      const base64Url = await fileToBase64(file);
+      const client = new Groq({ apiKey: GROQ_KEY, dangerouslyAllowBrowser: true });
+      
+      const completion = await client.chat.completions.create({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Identify all the food ingredients in this image. Return ONLY a comma-separated list of the names of the ingredients, properly capitalized. If there are no food ingredients, return "None". DO NOT output any other text or descriptions.' },
+            { type: 'image_url', image_url: { url: base64Url } }
+          ]
+        }],
+        temperature: 0.1,
+        max_tokens: 150,
       });
-      const model = await mobilenet.load({ version: 2, alpha: 1 });
-      const preds = await model.classify(img, 10);
-      const detected = mapPredictions(preds);
+
+      const raw = completion.choices[0]?.message?.content?.trim() || '';
+      if (raw.toLowerCase() === 'none' || raw === '') {
+        setDetectError('No ingredients detected — try a clearer food photo.');
+        return;
+      }
+      
+      const detected = raw
+        .split(',')
+        .map(s => s.trim())
+        .filter(s => s.length > 0 && s.toLowerCase() !== 'none');
+      
       setDetectedTags(prev => [...new Set([...prev, ...detected])]);
+
+      setSelected(prev => {
+        const next = { ...prev };
+        let hasChanges = false;
+        
+        detected.forEach(tag => {
+          const lowerTag = tag.toLowerCase();
+          for (const cat of CATEGORIES) {
+            for (const item of cat.items) {
+               if (
+                 item.name.toLowerCase() === lowerTag || 
+                 lowerTag.includes(item.name.toLowerCase()) || 
+                 item.name.toLowerCase().includes(lowerTag)
+               ) {
+                 if (!next[cat.key]) next[cat.key] = new Set();
+                 if (!next[cat.key].has(item.name)) {
+                   next[cat.key] = new Set(next[cat.key]).add(item.name);
+                   hasChanges = true;
+                 }
+               }
+            }
+          }
+        });
+        
+        return hasChanges ? next : prev;
+      });
+
       if (detected.length === 0) setDetectError('No ingredients detected — try a clearer food photo.');
-    } catch {
-      setDetectError('Detection failed — check your connection and try again.');
+    } catch (e: any) {
+      console.error(e);
+      setDetectError(e.message || 'Detection failed — check your connection and try again.');
     } finally {
       setDetecting(false);
     }
   }, []);
 
-  const processFile = (file: File) => {
+  const processFile = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) return;
     const url = URL.createObjectURL(file);
     setImageUrl(url);
     setDetectedTags([]);
     setDetectError(null);
-    void runDetection(url);
-  };
+    void runDetection(file);
+  }, [runDetection]);
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) processFile(file);
-  };
+  }, [processFile]);
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault(); setIsDragging(false);
+    
+    // 1. Local files dragged from OS
     const file = e.dataTransfer.files?.[0];
-    if (file) processFile(file);
-  };
+    if (file && file.type.startsWith('image/')) {
+      processFile(file);
+      return;
+    }
+
+    // 2. Images dragged from internet browser tabs (URL extraction)
+    const htmlData = e.dataTransfer.getData('text/html');
+    const uriData = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+    
+    let targetUrl: string | null = null;
+    if (htmlData) {
+      const match = htmlData.match(/<img[^>]+src="([^">]+)"/i);
+      if (match && match[1]) targetUrl = match[1];
+    }
+    if (!targetUrl && uriData) {
+      targetUrl = uriData;
+    }
+
+    if (targetUrl && targetUrl.startsWith('http')) {
+      try {
+        setDetecting(true); setDetectError(null);
+        // Avoid CORS blocks if the image server allows it, otherwise this fails structurally.
+        const res = await fetch(targetUrl);
+        if (!res.ok) throw new Error();
+        const blob = await res.blob();
+        if (blob.type.startsWith('image/')) {
+          processFile(new File([blob], 'dragged-image.jpg', { type: blob.type }));
+        } else {
+          setDetectError('The dropped link did not return a valid image.');
+          setDetecting(false);
+        }
+      } catch (err) {
+        setDetectError('We could not load the image from that website due to its security restrictions. Please download it first, or screenshot and paste it directly (Ctrl+V) instead.');
+        setDetecting(false);
+      }
+    }
+  }, [processFile]);
+
+  /* ── Listen for global Ctrl+V pasting ── */
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const file = e.clipboardData?.files?.[0];
+      if (file && file.type.startsWith('image/')) {
+        processFile(file);
+      }
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [processFile]);
 
   const handleGenerate = () => {
     sessionStorage.setItem('nutriLensIngredients', JSON.stringify(allItems));
@@ -509,7 +585,11 @@ const Scan = () => {
   /* ── Layout ── */
   return (
     /* Extra bottom padding for the sticky button bar */
-    <div className="page-enter pb-32">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="pb-32"
+    >
 
       {/* ══ PAGE HEADER ═══════════════════════════════════════════════ */}
       <div className="mb-8">
@@ -532,7 +612,7 @@ const Scan = () => {
                 text-sky-400 text-[10px] font-black">AI</span>
             </div>
             <p className="text-gray-600 text-xs mb-5">
-              Upload or drag a food photo — MobileNet CNN identifies ingredients automatically
+              Paste (Ctrl+V), upload or drag a food photo — LLaMA Scout identifies multiple ingredients proactively
             </p>
 
             {/* Drop zone */}
@@ -592,8 +672,8 @@ const Scan = () => {
                     d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
                 </svg>
                 <div>
-                  <p className="text-emerald-300 text-sm font-semibold">Running MobileNet CNN…</p>
-                  <p className="text-emerald-700 text-xs">Loading model and classifying image</p>
+                  <p className="text-emerald-300 text-sm font-semibold">Running LLaMA 3.2 Vision Model…</p>
+                  <p className="text-emerald-700 text-xs">Analysing semantic food profiles</p>
                 </div>
               </div>
             )}
@@ -721,11 +801,11 @@ const Scan = () => {
             {/* Result count badge */}
             {searchLower && (
               <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black ${
-                localItemsMatch.length > 0 || apiResults.length > 0
+                searchResultCount > 0 || apiResults.length > 0
                   ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
                   : 'bg-rose-500/15 border border-rose-500/30 text-rose-400'
               }`}>
-                {localItemsMatch.length + apiResults.length} found
+                {searchResultCount + apiResults.length} found
               </span>
             )}
 
@@ -756,67 +836,22 @@ const Scan = () => {
           )}
         </div>
 
-        {searchFocused && searchQuery.trim().length >= 2 && (apiResults.length > 0 || apiLoading || localItemsMatch.length > 0) && (
+        {searchFocused && searchQuery.trim().length >= 2 && (apiResults.length > 0 || apiLoading) && (
           <div className="absolute left-0 right-0 top-full mt-3 z-[100]
             bg-[#070a0e] rounded-2xl border border-white/10 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)]
             overflow-hidden animate-[fadeIn_0.15s_ease]">
 
-            {/* Local Results */}
-            {localItemsMatch.length > 0 && (
-              <div className="border-b border-white/6 pb-1">
-                <div className="px-4 py-2 mt-1 flex items-center justify-between">
-                  <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
-                    Quick Add (Local)
-                  </span>
-                  <span className="text-[10px] text-emerald-500/70 font-semibold">
-                    {localItemsMatch.length} found
-                  </span>
-                </div>
-                {localItemsMatch.map(item => {
-                  const alreadySelected = selected[item.catKey]?.has(item.name);
-                  return (
-                    <button
-                      key={item.name}
-                      onMouseDown={e => {
-                        e.preventDefault();
-                        toggleItem(item.catKey, item.name);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left
-                        transition-all duration-100 hover:bg-emerald-500/8 cursor-pointer">
-                      <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/8
-                        flex items-center justify-center text-base flex-shrink-0">
-                        {item.emoji}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-semibold capitalize truncate ${
-                          alreadySelected ? 'text-emerald-400' : 'text-white'
-                        }`}>
-                          {item.name}
-                        </p>
-                      </div>
-                      {alreadySelected && (
-                        <span className="text-[10px] text-emerald-600 font-bold px-2 py-0.5
-                          rounded bg-emerald-500/10">Added</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* API Header */}
-            {(apiResults.length > 0 || apiLoading) && (
-              <div className="px-4 py-2.5 border-b border-white/6 flex items-center justify-between">
-                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
-                  Spoonacular Results
+            {/* Header */}
+            <div className="px-4 py-2.5 border-b border-white/6 flex items-center justify-between">
+              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                Spoonacular Results
+              </span>
+              {apiResults.length > 0 && (
+                <span className="text-[10px] text-emerald-500/70 font-semibold">
+                  {apiResults.length} suggestions
                 </span>
-                {apiResults.length > 0 && (
-                  <span className="text-[10px] text-emerald-500/70 font-semibold">
-                    {apiResults.length} suggestions
-                  </span>
-                )}
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Loading state */}
             {apiLoading && apiResults.length === 0 && (
@@ -892,7 +927,7 @@ const Scan = () => {
         )}
 
         {/* Active search info */}
-        {searchLower && localItemsMatch.length > 0 && !searchFocused && (
+        {searchLower && searchResultCount > 0 && !searchFocused && (
           <p className="text-emerald-500/70 text-xs mt-2 ml-1">
             ✨ Matching items highlighted below — click to add them to your selection
           </p>
@@ -1020,16 +1055,19 @@ const Scan = () => {
         </div>
 
         {/* Generate button */}
-        <button
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           id="btn-generate-meals"
           onClick={handleGenerate}
           disabled={allItems.length === 0}
           className="flex-shrink-0 flex items-center gap-3 px-8 py-4 rounded-2xl
-            bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98]
+            bg-emerald-500 hover:bg-emerald-400 
             disabled:opacity-30 disabled:cursor-not-allowed
-            text-gray-950 font-black text-base transition-all duration-200
+            text-gray-950 font-black text-base transition-colors duration-200
             cursor-pointer shadow-xl shadow-emerald-900/50
-            glow-green">
+            glow-green"
+        >
           <span className="text-xl">✨</span>
           Generate Meals
           {allItems.length > 0 && (
@@ -1038,9 +1076,9 @@ const Scan = () => {
               {allItems.length}
             </span>
           )}
-        </button>
+        </motion.button>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
