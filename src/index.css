@@ -76,3 +76,9 @@ body {
   transform-origin: 50% 50%;
   transition: stroke-dashoffset 1s ease;
 }
+
+/* ── Dropdown fade-in ────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}

@@ -103,3 +103,8 @@ export function estimateMacros(ingredients: string[]): Macros {
     fat:      Math.round(fat),
   };
 }
+
+/** Look up macros for a single ingredient from the static DB */
+export function lookupIngredient(name: string): Macros | null {
+  return DB[name] ?? null;
+}
