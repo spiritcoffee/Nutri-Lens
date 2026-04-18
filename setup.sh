@@ -1,62 +1,85 @@
 #!/usr/bin/env bash
-# =============================================================
-#  Nutri-Lens — one-shot setup script
-#  Usage:  bash setup.sh
-# =============================================================
+# ──────────────────────────────────────────────────────────────────────
+#  Nutri-Lens · setup.sh
+#  Run once after cloning: bash setup.sh
+# ──────────────────────────────────────────────────────────────────────
+set -euo pipefail
 
-set -e  # exit immediately on any error
+GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
 
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Colour
+ok()   { echo -e "${GREEN}  ✔  $1${NC}"; }
+warn() { echo -e "${YELLOW}  ⚠  $1${NC}"; }
+err()  { echo -e "${RED}  ✖  $1${NC}"; }
+info() { echo -e "     $1"; }
 
 echo ""
-echo -e "${GREEN}🥗  Nutri-Lens Setup${NC}"
-echo "============================================="
+echo -e "${BOLD}🥗  Nutri-Lens — First-time setup${NC}"
+echo "──────────────────────────────────────────"
 
-# ── 1. Check Node.js ─────────────────────────────────────────
-if ! command -v node &> /dev/null; then
-  echo -e "${RED}✗  Node.js is not installed.${NC}"
-  echo "   Please install Node.js 18+ from https://nodejs.org and re-run this script."
-  exit 1
-fi
-
-NODE_VER=$(node -v | sed 's/v//' | cut -d. -f1)
-if [ "$NODE_VER" -lt 18 ]; then
-  echo -e "${RED}✗  Node.js 18+ is required (you have $(node -v)).${NC}"
-  exit 1
-fi
-echo -e "${GREEN}✓  Node.js $(node -v) detected${NC}"
-
-# ── 2. Install dependencies ───────────────────────────────────
-echo ""
-echo "📦  Installing dependencies..."
-npm install
-echo -e "${GREEN}✓  Dependencies installed${NC}"
-
-# ── 3. Check for .env.local ──────────────────────────────────
-echo ""
-if [ ! -f ".env.local" ]; then
-  echo -e "${YELLOW}⚠   .env.local not found — creating from template...${NC}"
-  cp .env.example .env.local
-  echo -e "${YELLOW}    ➜  Open .env.local and paste your Google OAuth Client ID.${NC}"
+# ── 1. Node version ───────────────────────────────────────────────────
+NODE_MAJOR=$(node -e "process.stdout.write(process.version.slice(1).split('.')[0])" 2>/dev/null || echo "0")
+if [ "$NODE_MAJOR" -ge 18 ]; then
+  ok "Node.js $(node -v)"
 else
-  if grep -q "YOUR_GOOGLE_CLIENT_ID_HERE" .env.local 2>/dev/null; then
-    echo -e "${YELLOW}⚠   .env.local exists but still has the placeholder Client ID.${NC}"
-    echo -e "${YELLOW}    ➜  Open .env.local and replace YOUR_GOOGLE_CLIENT_ID_HERE with your real Client ID.${NC}"
+  err "Node.js 18+ required (found: $(node -v 2>/dev/null || echo 'not installed'))"
+  info "Install from https://nodejs.org or use nvm: nvm install 20"
+  exit 1
+fi
+
+# ── 2. npm install ────────────────────────────────────────────────────
+echo ""
+echo -e "${BOLD}Installing dependencies…${NC}"
+npm install
+ok "Dependencies installed"
+
+# ── 3. .env.local check ───────────────────────────────────────────────
+echo ""
+echo -e "${BOLD}Checking environment…${NC}"
+
+if [ ! -f ".env.local" ]; then
+  cp .env.example .env.local
+  warn ".env.local created from .env.example"
+  echo ""
+  echo -e "${RED}╔══════════════════════════════════════════════════════════════╗${NC}"
+  echo -e "${RED}║  ACTION REQUIRED — IMPORTANT                                 ║${NC}"
+  echo -e "${RED}╚══════════════════════════════════════════════════════════════╝${NC}"
+  echo ""
+  echo -e "  Open ${BOLD}.env.local${NC} and fill in your Google OAuth Client ID:"
+  echo ""
+  echo -e "    ${GREEN}VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com${NC}"
+  echo ""
+  echo -e "  Get one at: ${BOLD}https://console.cloud.google.com/apis/credentials${NC}"
+  echo ""
+  echo -e "  Steps:"
+  echo -e "    1. Create a ${BOLD}Web application${NC} OAuth 2.0 Client ID"
+  echo -e "    2. Add ${GREEN}http://localhost:5173${NC} as an Authorised JavaScript Origin"
+  echo -e "    3. Copy the Client ID into ${BOLD}.env.local${NC}"
+  echo ""
+else
+  # Check if the placeholder is still there or the key is empty
+  CURRENT_ID=$(grep 'VITE_GOOGLE_CLIENT_ID' .env.local | cut -d'=' -f2 | tr -d ' ')
+  if [ -z "$CURRENT_ID" ] || [ "$CURRENT_ID" = "your-client-id.apps.googleusercontent.com" ]; then
+    warn ".env.local exists but VITE_GOOGLE_CLIENT_ID is not set"
+    echo ""
+    echo -e "  Edit ${BOLD}.env.local${NC} and add:"
+    echo -e "    ${GREEN}VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com${NC}"
+    echo ""
+    echo -e "  Get one at: ${BOLD}https://console.cloud.google.com/apis/credentials${NC}"
+    echo ""
   else
-    echo -e "${GREEN}✓  .env.local is configured${NC}"
+    ok "VITE_GOOGLE_CLIENT_ID is configured"
   fi
 fi
 
-# ── 4. Done ───────────────────────────────────────────────────
+# ── 4. Done ───────────────────────────────────────────────────────────
+echo "──────────────────────────────────────────"
+echo -e "${GREEN}${BOLD}  Setup complete!${NC}"
 echo ""
-echo "============================================="
-echo -e "${GREEN}✅  Setup complete!${NC}"
+echo -e "  Start the dev server:"
+echo -e "    ${BOLD}npm run dev${NC}   →   http://localhost:5173"
 echo ""
-echo "   Start the dev server with:"
-echo -e "   ${YELLOW}npm run dev${NC}"
-echo ""
-echo "   Then open: http://localhost:5173"
-echo ""
+
+# If env is not set, don't auto-start — let them configure first
+if [ ! -f ".env.local" ] || [ -z "$(grep 'VITE_GOOGLE_CLIENT_ID' .env.local | cut -d'=' -f2 | tr -d ' ')" ]; then
+  warn "Configure .env.local before starting the server (app will show a setup screen otherwise)"
+fi
