@@ -224,39 +224,6 @@ const Home = () => {
   const navigate = useNavigate();
   const [editingProfile, setEditingProfile] = useState<NutriProfile | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
-  const tooltipRef = useRef<HTMLDivElement>(null);
-
-  const handleDayEnter = useCallback((e: React.MouseEvent<HTMLDivElement>, date: string, active: boolean) => {
-    const el = tooltipRef.current;
-    if (!el || !date) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    const d = new Date(date + 'T00:00:00');
-    const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-    el.style.left   = `${r.left + r.width / 2}px`;
-    el.style.top    = `${r.top - 10}px`;
-    el.style.transform = 'translate(-50%, -100%)';
-    const card  = el.querySelector<HTMLElement>('[data-card]');
-    const lbl   = el.querySelector<HTMLElement>('[data-label]');
-    const stat  = el.querySelector<HTMLElement>('[data-status]');
-    const arrow = el.querySelector<HTMLElement>('[data-arrow]');
-    if (lbl)  lbl.textContent  = label;
-    if (stat) stat.textContent = active ? '✅ Goal met' : 'No goal logged';
-    const green   = 'bg-emerald-950/90 border-emerald-500/40 text-white';
-    const neutral = 'bg-[#0d1117] border-white/10 text-gray-300';
-    if (card)  card.className  = `px-3 py-2 rounded-xl text-xs font-semibold shadow-xl backdrop-blur-md border whitespace-nowrap ${active ? green : neutral}`;
-    if (stat)  stat.className  = `text-[10px] mt-0.5 font-bold text-center ${active ? 'text-emerald-400' : 'text-gray-600'}`;
-    if (arrow) arrow.className = `w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent ${active ? 'border-t-emerald-900' : 'border-t-[#0d1117]'}`;
-    el.style.opacity    = '1';
-    el.style.visibility = 'visible';
-  }, []);
-
-  const handleDayLeave = useCallback(() => {
-    const el = tooltipRef.current;
-    if (!el) return;
-    el.style.opacity    = '0';
-    el.style.visibility = 'hidden';
-  }, []);
-
   const isGroup = activeProfiles.length > 1;
   const primary = activeProfiles[0];
 
@@ -582,24 +549,45 @@ const Home = () => {
                     ))}
                   </div>
                   <div className="grid grid-cols-7 gap-px">
-                    {days.map((day, di) => (
-                      <div
-                        key={di}
-                        onMouseEnter={day.date ? (e) => handleDayEnter(e, day.date, day.active) : undefined}
-                        onMouseLeave={day.date ? handleDayLeave : undefined}
-                        className={`w-3 h-3 rounded-sm transition-all duration-200 ${
-                          !day.date
-                            ? 'invisible'
-                            : day.isToday
-                            ? day.active
-                              ? 'bg-orange-400 ring-1 ring-orange-300/60'
-                              : 'bg-white/10 ring-1 ring-white/25'
-                            : day.active
-                            ? 'bg-emerald-500 hover:bg-emerald-400 cursor-pointer'
-                            : 'bg-white/5 hover:bg-white/10'
-                        }`}
-                      />
-                    ))}
+                    {days.map((day, di) => {
+                      const d = day.date ? new Date(day.date + 'T00:00:00') : null;
+                      const label = d ? d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '';
+                      return (
+                        <div
+                          key={di}
+                          className={`relative w-3 h-3 rounded-sm transition-all duration-200 group ${
+                            !day.date
+                              ? 'invisible'
+                              : day.isToday
+                              ? day.active
+                                ? 'bg-orange-400 ring-1 ring-orange-300/60 cursor-pointer'
+                                : 'bg-white/10 ring-1 ring-white/25 cursor-pointer'
+                              : day.active
+                              ? 'bg-emerald-500 hover:bg-emerald-400 cursor-pointer'
+                              : 'bg-white/5 hover:bg-white/10 cursor-pointer'
+                          }`}
+                        >
+                          {/* CSS Hover Tooltip */}
+                          {day.date && (
+                            <div className="absolute bottom-full left-1/2 -ml-[1px] -translate-x-1/2 mb-1.5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-[100]">
+                              <div className="flex flex-col items-center">
+                                <div className={`px-3 py-2 rounded-xl text-xs font-semibold shadow-xl backdrop-blur-md border whitespace-nowrap ${
+                                  day.active ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-400' : 'bg-[#0d1117] border-white/10 text-gray-400'
+                                }`}>
+                                  <span className={`block font-black text-[11px] ${day.active ? 'text-white' : 'text-gray-300'}`}>{label}</span>
+                                  <span className="block text-[10px] mt-0.5 font-bold text-center">
+                                    {day.active ? '✅ Goal met' : 'No goal logged'}
+                                  </span>
+                                </div>
+                                <div className={`w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent ${
+                                  day.active ? 'border-t-emerald-900/90' : 'border-t-[#0d1117]'
+                                }`} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -663,21 +651,6 @@ const Home = () => {
             </div>
           )}
         </div>
-      </div>
-      {/* ── Day tooltip (always mounted, shown/hidden imperatively) ── */}
-      <div
-        ref={tooltipRef}
-        className="fixed z-[500] pointer-events-none"
-        style={{ opacity: 0, visibility: 'hidden', transition: 'opacity 0.1s ease' }}
-      >
-        <div className="flex flex-col items-center">
-          <div data-card className="px-3 py-2 rounded-xl text-xs font-semibold shadow-xl backdrop-blur-md border whitespace-nowrap bg-[#0d1117] border-white/10 text-gray-300">
-            <span data-label className="font-black text-[11px] block" />
-            <span data-status className="text-[10px] mt-0.5 font-bold text-center block text-gray-600" />
-          </div>
-          <div data-arrow className="w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-[#0d1117]" />
-        </div>
-      </div>
     </div>
   );
 };
