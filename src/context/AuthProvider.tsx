@@ -29,7 +29,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profiles, setProfiles]           = useState<NutriProfile[]>(() => load<NutriProfile[]>(LS_PROFILES, []));
   const [activeProfiles, setActiveState]  = useState<NutriProfile[]>(() => load<NutriProfile[]>(LS_ACTIVE, []));
   const [history, setHistory]             = useState<MealHistoryEntry[]>(() => load<MealHistoryEntry[]>(LS_HISTORY, []));
-  const [goalDays, setGoalDays]           = useState<string[]>(() => load<string[]>(LS_GOALDAYS, []));
 
   /* ── Auth ──────────────────────────────────────────────────────── */
   const login = useCallback((u: GoogleUser) => {
@@ -115,14 +114,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [],
   );
 
+  const [goalDaysRecord, setGoalDaysRecord] = useState<Record<string, string[]>>(() => {
+    const saved = load<any>(LS_GOALDAYS, {});
+    if (Array.isArray(saved)) return { legacy: saved };
+    return saved || {};
+  });
+
+  const activeKey = activeProfiles.map(p => p.id).sort().join(',');
+  const activeGoalDays = activeKey && goalDaysRecord[activeKey] ? goalDaysRecord[activeKey] : [];
+
   const markGoalDay = useCallback((dateStr: string) => {
-    setGoalDays(prev => {
-      if (prev.includes(dateStr)) return prev;
-      const next = [...prev, dateStr];
+    if (!activeKey) return;
+    setGoalDaysRecord(prev => {
+      const prevList = prev[activeKey] || [];
+      if (prevList.includes(dateStr)) return prev;
+      const next = { ...prev, [activeKey]: [...prevList, dateStr] };
       localStorage.setItem(LS_GOALDAYS, JSON.stringify(next));
       return next;
     });
-  }, []);
+  }, [activeKey]);
 
   return (
     <AuthContext.Provider
@@ -141,7 +151,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         clearActiveProfiles,
         history,
         addHistoryEntry,
-        goalDays,
+        goalDays: activeGoalDays,
         markGoalDay,
       }}
     >

@@ -570,11 +570,11 @@ const Home = () => {
                               ? 'invisible'
                               : day.isToday
                               ? day.active
-                                ? 'bg-orange-400 ring-1 ring-orange-300/60 cursor-pointer'
-                                : 'bg-white/10 ring-1 ring-white/25 cursor-pointer'
+                                ? 'bg-orange-400 ring-1 ring-orange-300/60 cursor-pointer shadow-lg shadow-orange-900/40'
+                                : 'bg-white/20 ring-1 ring-white/40 cursor-pointer'
                               : day.active
-                              ? 'bg-emerald-500 hover:bg-emerald-400 cursor-pointer'
-                              : 'bg-white/5 hover:bg-white/10 cursor-pointer'
+                              ? 'bg-emerald-500 hover:bg-emerald-400 cursor-pointer shadow-md shadow-emerald-900/20'
+                              : 'bg-white/10 hover:bg-white/20 border border-white/5 cursor-pointer'
                           }`}
                         >
                           {/* CSS Hover Tooltip */}

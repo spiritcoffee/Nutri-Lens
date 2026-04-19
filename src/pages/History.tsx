@@ -5,6 +5,9 @@ const History = () => {
   const { activeProfiles, history } = useAuth();
   const navigate = useNavigate();
 
+  const activeIds = new Set(activeProfiles.map(p => p.id));
+  const visibleHistory = history.filter(e => e.profileIds.some(id => activeIds.has(id)));
+
   return (
     <div className="page-enter space-y-8">
 
@@ -50,7 +53,7 @@ const History = () => {
         
         {/* Main section: History Feed or Empty State */}
         <div className="lg:col-span-2 space-y-4">
-          {history.length === 0 ? (
+          {visibleHistory.length === 0 ? (
             <div className="glass rounded-3xl p-16 flex flex-col items-center justify-center text-center">
               <div className="w-20 h-20 rounded-3xl glass flex items-center justify-center text-4xl mb-6 border border-white/8">
                 📷
@@ -68,7 +71,7 @@ const History = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {history.map((entry) => (
+              {visibleHistory.map((entry) => (
                 <div key={entry.id} className="glass rounded-2xl p-6 border border-white/6 hover:border-white/15 transition-all">
                   <div className="flex justify-between items-start mb-4">
                     <div>
