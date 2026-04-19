@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/useAuth';
 import { useNavigate } from 'react-router-dom';
 import type { NutriProfile, NutriGoal, DietaryPref } from '../context/authContext';
@@ -651,6 +651,7 @@ const Home = () => {
             </div>
           )}
         </div>
+      </div>
     </div>
   );
 };
