@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Groq from 'groq-sdk';
 import { useAuth } from '../context/useAuth';
-import { estimateMacros, type Macros } from '../data/nutritionLookup';
+import { estimateMacros } from '../data/nutritionLookup';
 import { fetchSpoonacularCandidates } from '../data/spoonacularApi';
 
 /* ── Types ──────────────────────────────────────────────────────────── */
@@ -214,7 +214,7 @@ const Results = () => {
     try { return JSON.parse(sessionStorage.getItem('nutriLensIngredients') ?? '[]') as string[]; }
     catch { return []; }
   })();
-  const estimatedMacros: Macros = estimateMacros(ingredients);
+  estimateMacros(ingredients);
 
   /* Early guards computed before state so they don't need setState in effects */
   const initError: string | null =
@@ -339,7 +339,7 @@ Respond with ONLY this JSON (no markdown, no explanation):
       for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
           const completion = await client.chat.completions.create({
-            model: 'llama-3.3-70b-versatile',
+            model: 'llama-3.1-8b-instant',
             messages: [{ role: 'user', content: prompt }],
             response_format: { type: 'json_object' },
             temperature: 0.7,
@@ -359,9 +359,15 @@ Respond with ONLY this JSON (no markdown, no explanation):
           // Detect 429 rate limit
           const is429 = msg.includes('429') || msg.toLowerCase().includes('rate_limit');
           if (is429 && attempt < MAX_RETRIES - 1) {
-            // Parse wait time from Groq error message ("Please try again in 15.7s")
-            const match = msg.match(/(\d+\.?\d*)s/);
-            const waitSec = match ? parseFloat(match[1]) + 1 : 20;
+            // Parse wait time (matches "28m28s" or "1.4s")
+            const match = msg.match(/(?:(\d+)m)?(\d+\.?\d*)s/);
+            let waitSec = 20;
+            if (match) {
+              const mins = match[1] ? parseInt(match[1], 10) : 0;
+              const secs = parseFloat(match[2]);
+              waitSec = (mins * 60) + secs + 1;
+            }
+            
             setPhase(`Rate limited — retrying in…`);
             await waitWithCountdown(waitSec);
             setPhase('Retrying…');
@@ -427,11 +433,11 @@ Respond with ONLY this JSON (no markdown, no explanation):
           <p className={`font-bold ${retryIn !== null ? 'text-amber-300' : 'text-white'}`}>{phase}</p>
           {retryIn !== null ? (
             <p className="text-amber-600 text-xs mt-0.5">
-              Groq rate limit hit &mdash; auto-retrying in <span className="text-amber-400 font-black">{retryIn}s</span>
+              Groq rate limit hit &mdash; auto-retrying in <span className="text-amber-400 font-black">{Math.floor(retryIn / 60)}m {retryIn % 60}s</span>
             </p>
           ) : (
             <p className="text-gray-600 text-xs mt-0.5">
-              Powered by <span className="text-emerald-500 font-semibold">Llama 3 70B</span> via Groq
+              Powered by <span className="text-emerald-500 font-semibold">Llama 3.1 8B</span> via Groq
             </p>
           )}
         </div>
@@ -474,7 +480,7 @@ Respond with ONLY this JSON (no markdown, no explanation):
                 </a>
               </p>
               <p className="text-gray-600 text-xs mt-1">
-                Uses <strong className="text-gray-500">Llama 3 70B</strong> — free tier available
+                Uses <strong className="text-gray-500">Llama 3.1 8B</strong> — free tier available
               </p>
             </div>
           </div>
@@ -593,7 +599,7 @@ Respond with ONLY this JSON (no markdown, no explanation):
         <div>
           <h1 className="text-3xl font-black text-white tracking-tight">🍽️ Your Meal Suggestions</h1>
           <p className="text-gray-500 text-sm mt-1">
-            Personalised by <span className="text-emerald-400 font-semibold">Llama 3.3 70B</span> via Groq — based on your profile and ingredients
+            Personalised by <span className="text-emerald-400 font-semibold">Llama 3.1 8B</span> via Groq — based on your profile and ingredients
           </p>
         </div>
         <div className="flex gap-3 flex-shrink-0">
@@ -647,7 +653,7 @@ Respond with ONLY this JSON (no markdown, no explanation):
         <div className="ml-auto flex items-center gap-2 bg-emerald-950/50 border border-emerald-800/30
           rounded-xl px-3 py-2">
           <span className="text-sm">⚡</span>
-          <span className="text-xs text-emerald-400 font-semibold">Llama 3 70B · Groq</span>
+          <span className="text-xs text-emerald-400 font-semibold">Llama 3.1 8B · Groq</span>
         </div>
       </div>
 
