@@ -514,15 +514,7 @@ const Home = () => {
             </>
           ) : null}
         </div>
-        <div className="absolute top-6 right-6">
-          <button onClick={() => navigate('/scan')}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full
-              bg-emerald-500 hover:bg-emerald-400 active:scale-95
-              text-gray-950 font-bold text-sm transition-all duration-150 cursor-pointer
-              shadow-xl shadow-emerald-900/50">
-            📷 Scan Food
-          </button>
-        </div>
+
       </div>
 
       {/* ══ MAIN GRID ════════════════════════════════════════════════════ */}
