@@ -86,9 +86,9 @@ const DailyHistoryGraph = ({
     <div className="flex flex-col gap-3">
       <div className="relative" style={{ height: height + 20 }}>
         {/* Y-Axis Label (Target) */}
-        <div className="absolute left-0 right-0 border-t border-white/10"
+        <div className="absolute left-0 right-0 border-t border-white/20"
              style={{ top: `${(1 - target / maxVal) * height}px` }}>
-          <span className="absolute -top-4 right-0 text-[8px] font-bold text-gray-500 uppercase tracking-tighter">
+          <span className="absolute -top-4 right-0 text-[8px] font-black text-gray-400 uppercase tracking-tighter">
             Goal: {target}{unit}
           </span>
         </div>
@@ -105,11 +105,11 @@ const DailyHistoryGraph = ({
                   style={{
                     width: barWidth,
                     height: Math.max(h, 4),
-                    backgroundColor: isTargetMet ? color : 'rgba(255,255,255,0.1)',
-                    opacity: v.value === 0 ? 0.2 : 1
+                    backgroundColor: isTargetMet ? color : 'rgba(255,255,255,0.2)',
+                    opacity: v.value === 0 ? 0.3 : 1
                   }}
                 />
-                <span className="text-[9px] text-gray-600 font-bold mt-2 uppercase tracking-tighter">
+                <span className="text-[9px] text-gray-400 font-bold mt-2 uppercase tracking-tighter">
                   {v.label}
                 </span>
 
@@ -280,7 +280,7 @@ const Profile = () => {
                 </div>
 
                 {/* ── 7-Day Progress Graphs ──────────────────────── */}
-                <div className="px-7 py-6 border-b border-white/5 bg-white/2">
+                <div className="px-7 py-6 border-b border-white/5 bg-black/20">
                   <p className="text-[10px] text-gray-500 uppercase tracking-[0.15em] font-bold mb-8">
                     Daily Progress (Last 7 Days)
                   </p>
@@ -292,7 +292,7 @@ const Profile = () => {
                         color="#10b981"
                         unit="kcal"
                       />
-                      <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest text-center mt-4">Calorie Intake</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center mt-4">Calorie Intake</p>
                     </div>
                     <div>
                       <DailyHistoryGraph
@@ -301,7 +301,7 @@ const Profile = () => {
                         color="#3b82f6"
                         unit="g"
                       />
-                      <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest text-center mt-4">Protein Intake</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center mt-4">Protein Intake</p>
                     </div>
                   </div>
                 </div>
