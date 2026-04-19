@@ -120,28 +120,7 @@ const Login = () => {
               Continue with Google
             </button>
 
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-white/6" />
-              <span className="text-gray-700 text-xs">or</span>
-              <div className="flex-1 h-px bg-white/6" />
-            </div>
 
-            {/* Feature chips — mobile */}
-            <div className="flex flex-wrap gap-2">
-              {['📸 Snap & Analyse','📊 Track Macros','🎯 Goal Setting'].map(t => (
-                <span key={t} className="px-3 py-1 rounded-full text-xs font-medium
-                  bg-emerald-900/30 border border-emerald-700/30 text-emerald-400">
-                  {t}
-                </span>
-              ))}
-            </div>
-
-            <p className="text-gray-700 text-xs text-center">
-              By continuing you agree to our{' '}
-              <span className="text-emerald-600 hover:underline cursor-pointer">Terms</span>{' '}
-              &amp;{' '}
-              <span className="text-emerald-600 hover:underline cursor-pointer">Privacy</span>
-            </p>
           </div>
 
           {/* Spices teaser bottom */}
