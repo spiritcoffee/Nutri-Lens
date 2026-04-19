@@ -174,16 +174,21 @@ const NutritionCard = ({
   label: string; consumed: number; target: number;
   unit: string; color: string; barColor: string;
 }) => {
-  const pct = target > 0 ? Math.min(100, Math.round((consumed / target) * 100)) : 0;
+  const actualPct = target > 0 ? Math.round((consumed / target) * 100) : 0;
+  const displayPct = Math.min(100, actualPct);
   const isOver = consumed > target;
+  const isDeepOver = actualPct >= 110;
+
   return (
-    <div className="glass rounded-2xl p-5 flex flex-col gap-3">
+    <div className={`glass rounded-2xl p-5 flex flex-col gap-3 transition-all duration-300 ${
+      isDeepOver ? 'ring-1 ring-rose-500/30 bg-rose-500/5' : ''
+    }`}>
       {/* Label + percentage */}
       <div className="flex items-center justify-between">
         <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">{label}</span>
         <span className={`text-xs font-bold tabular-nums ${
-          isOver ? 'text-rose-400' : pct >= 80 ? 'text-emerald-400' : 'text-gray-500'
-        }`}>{pct}%</span>
+          isOver ? 'text-rose-400' : displayPct >= 80 ? 'text-emerald-400' : 'text-gray-500'
+        }`}>{actualPct}%</span>
       </div>
       {/* Value display */}
       <div className="flex items-baseline gap-1">
@@ -200,17 +205,26 @@ const NutritionCard = ({
           className={`h-1.5 rounded-full transition-all duration-700 ease-out ${
             isOver ? 'bg-rose-500' : barColor
           }`}
-          style={{ width: `${pct}%` }}
+          style={{ width: `${displayPct}%` }}
         />
       </div>
-      {/* Remaining or over */}
-      <p className="text-[10px] text-gray-700 tabular-nums">
-        {isOver
-          ? `${consumed - target} ${unit} over target`
-          : consumed === 0
-          ? `Target: ${target} ${unit}`
-          : `${target - consumed} ${unit} remaining`}
-      </p>
+      
+      {/* Conditional Warning */}
+      {isDeepOver ? (
+        <div className="bg-rose-500/10 rounded-lg p-2 border border-rose-500/20">
+          <p className="text-[9px] text-rose-400 font-black leading-tight uppercase tracking-tight">
+            ⚠️ You're exceeding today's limit
+          </p>
+        </div>
+      ) : (
+        <p className="text-[10px] text-gray-700 tabular-nums">
+          {isOver
+            ? `${consumed - target} ${unit} over target`
+            : consumed === 0
+            ? `Target: ${target} ${unit}`
+            : `${target - consumed} ${unit} remaining`}
+        </p>
+      )}
     </div>
   );
 };
