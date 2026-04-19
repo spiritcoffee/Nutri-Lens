@@ -1,113 +1,83 @@
-# 🥗 Nutri-Lens
+# 🥑 Nutri-Lens
 
-> AI-powered nutrition companion — snap a photo and instantly know what's on your plate.
-
----
-
-## ✨ Features
-
-- 🔐 **Google OAuth** sign-in (no passwords)
-- 👤 **Netflix-style profile selector** — up to 5 nutrition profiles per account
-- 📸 **Food scanning** — upload or capture a meal photo for instant analysis
-- 📊 **Macro tracking** — calories, protein, carbs, fat
-- 📋 **History** — review past scans and trends
-- 💾 **Persistent profiles** — stored in `localStorage` per Google account
+Nutri-Lens is a highly-intelligent, AI-powered nutrition tracker and recipe recommendation engine. Built with modern web technologies and powered by state-of-the-art Multimodal Large Language Models, it helps users optimize their daily food intake perfectly to their physical goals while eliminating food waste.
 
 ---
 
-## 🚀 Quick Start
+## 🌟 Key Features
 
-### 1. Clone and set up
+* **📷 LLaMA Vision Ingredient Detection**
+  Upload, drag-and-drop, or paste a photo of your fridge. Nutri-Lens uses Meta's LLaMA Vision Model (`llama-4-scout-17b-16e-instruct` via Groq) to instantly detect semantic food profiles and populate your ingredient list.
 
-```bash
-git clone <your-repo-url>
-cd Nutri-Lens
-bash setup.sh
-```
+* **🧠 Smart Palate-Learning AI**
+  Rate the meals you've cooked in your **History Logs**. The AI securely learns your unique flavor preferences, actively recommending future recipes similar to your 4-and-5-star meals, explicitly avoiding flavor-profiles you disliked.
 
-`setup.sh` will:
-- ✅ Check your Node.js version (18+ required)
-- 📦 Run `npm install`
-- ⚠️ Warn you if `.env.local` is missing or unconfigured
+* **🎯 BMI & Goal-Adjusted Daily Macros**
+  Nutri-Lens mathematically calculates your daily Total Daily Energy Expenditure (TDEE). Select specific goals (`muscle-gain`, `weight-loss`, `maintenance`), and the engine will dynamically adjust caloric surpluses, deficits, and protein multipliers while using your BMI as a heavy safety guardrail.
 
-### 2. Configure Google OAuth
+* **🛒 Predictive "Cook Now" Categorization**
+  Powered by the **Spoonacular API**, recipes are strictly categorized as:
+  * **"Cook Now":** Meals that can be made entirely with the ingredients you already have.
+  * **"Worth the Grocery Run":** Meals that dynamically require just a few extra ingredients.
 
-1. Go to [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials)
-2. Create a **Web application** OAuth 2.0 Client ID
-3. Add `http://localhost:5173` as an **Authorised JavaScript Origin**
-4. Copy the Client ID and open `.env.local`:
+* **👨‍👩‍👧 Family Multi-Profile Tracking**
+  Manage nutrition goals for multiple people simultaneously under a single Google OAuth authenticated account. Switch active profiles independently to generate custom meal plans.
 
-```env
-VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-```
-
-### 3. Start the dev server
-
-```bash
-npm run dev
-```
-
-Then open **http://localhost:5173** in your browser.
+* **✨ Premium Glassmorphism UI**
+  A beautifully designed dark-mode architecture using Tailwind CSS and `framer-motion` for a deeply premium user experience.
 
 ---
 
-## 🗂 Project Structure
+## 🛠️ Tech Stack
 
-```
-src/
-├── context/
-│   ├── authContext.ts      # Types, AuthContext object
-│   ├── AuthContext.tsx     # AuthProvider component
-│   └── useAuth.ts          # useAuth hook
-├── components/
-│   ├── ProtectedRoute.tsx  # Redirects to /login if unauthenticated
-│   └── ProfileGuard.tsx    # Redirects to /profile-select if no active profile
-├── layouts/
-│   └── RootLayout.tsx      # Navbar + page outlet
-├── pages/
-│   ├── Login.tsx           # Google sign-in page
-│   ├── ProfileSelector.tsx # Netflix-style profile picker
-│   ├── UserProfile.tsx     # Create new nutrition profile (form)
-│   ├── Home.tsx
-│   ├── Scan.tsx
-│   ├── History.tsx
-│   └── Profile.tsx
-└── index.css
-```
+* **Frontend Framework:** React 19 & Vite
+* **Styling:** Tailwind CSS (v4)
+* **Animation:** `framer-motion` & `canvas-confetti`
+* **Authentication:** Google OAuth (`@react-oauth/google`)
+* **AI & Language Models:** Groq Platform (LLaMA 3 / LLaMA 4 Vision)
+* **Recipe Database Engine:** Spoonacular API
+* **Routing:** `react-router-dom`
 
 ---
 
-## 🔀 Navigation Flow
+## 🚀 Getting Started
 
-```
-/login  →  /profile-select  →  /home
-                ↑
-        (Switch Profile)
-```
+### Prerequisites
 
-- `/login` — public, Google OAuth
-- `/profile-select` — protected, Netflix-style profile picker
-- `/create-profile` — protected, new profile form
-- `/home`, `/scan`, `/history`, `/profile` — protected + requires active profile
+You need `Node.js` installed on your machine.
+
+### Installation
+
+1. **Clone the repository** (or download the source):
+   ```bash
+   git clone https://github.com/spiritcoffee/Nutri-Lens.git
+   cd Nutri-Lens
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Configure Environment Variables**:
+   Create a `.env.local` file in the root directory mapping your strict API keys and OAuth secrets:
+   ```env
+   VITE_GOOGLE_CLIENT_ID="[Your Google OAuth Client ID]"
+   VITE_GROQ_API_KEY="[Your Groq API Key]"
+   VITE_SPOONACULAR_API_KEY="[Your Spoonacular API Key]"
+   ```
+
+4. **Start the Development Server**:
+   ```bash
+   npm run dev
+   ```
+   > By default, the application will run at `http://localhost:5173`. Make sure to configure your Google Cloud OAuth consent screen to authorize `http://localhost:5173` as a valid Authorized redirect URI!
 
 ---
 
-## 🛠 Available Scripts
+## 🔮 Roadmap
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Start Vite dev server at http://localhost:5173 |
-| `npm run build` | Production build |
-| `npm run preview` | Preview production build locally |
-| `npm run lint` | Run ESLint |
-| `bash setup.sh` | First-time setup helper |
+* **Macro Scanner:** Extract nutritional labels automatically using OCR.
+* **Smart Grocery Lists:** Auto-populate a shopping list based on the "Additional Ingredients" needed for your saved recipes.
 
----
-
-## ⚙️ Environment Variables
-
-| Variable | Description |
-|---|---|
-| `VITE_GOOGLE_CLIENT_ID` | Google OAuth 2.0 Client ID |
-
-Copy `.env.example` → `.env.local` and fill in your value.
+*Designed with ❤️ to make healthy eating effortless and incredibly delicious.*
