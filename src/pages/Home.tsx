@@ -329,17 +329,33 @@ const Home = () => {
   const [selectedYear, setSelectedYear] = useState(thisYear);
 
   // Build full year grid grouped by month
+  // Pre-calculate daily logged calories for the progress heatmap mapped by local YYYY-MM-DD
+  const historyByDay: Record<string, number> = {};
+  history.filter(e => e.profileIds.some(id => activeIds.has(id))).forEach(e => {
+    const d = new Date(e.timestamp);
+    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    historyByDay[ds] = (historyByDay[ds] || 0) + (e.calories || 0);
+  });
+
   const monthGrids = MONTH_NAMES.map((month, mi) => {
-    const days: { date: string; active: boolean; isToday: boolean }[] = [];
+    const days: { date: string; active: boolean; isToday: boolean; status: 'blank'|'light'|'dark'|'met'; cals: number }[] = [];
     const first = new Date(selectedYear, mi, 1);
     const last  = new Date(selectedYear, mi + 1, 0);
     // leading blanks so day 1 aligns to its week day (Mon=0)
     const startDow = (first.getDay() + 6) % 7;
-    for (let b = 0; b < startDow; b++) days.push({ date: '', active: false, isToday: false });
+    for (let b = 0; b < startDow; b++) days.push({ date: '', active: false, isToday: false, status: 'blank', cals: 0 });
     for (let d = 1; d <= last.getDate(); d++) {
       const dt  = new Date(selectedYear, mi, d);
       const str = isoDate(dt);
-      days.push({ date: str, active: goalDaysSet.has(str), isToday: str === todayStr });
+      const isMet = goalDaysSet.has(str);
+      const cals = historyByDay[str] || 0;
+      let status: 'blank' | 'light' | 'dark' | 'met' = 'blank';
+      if (isMet) {
+        status = 'met';
+      } else if (cals > 0) {
+        status = (cals / avgTdee) >= 0.5 ? 'dark' : 'light';
+      }
+      days.push({ date: str, active: isMet, isToday: str === todayStr, status, cals });
     }
     return { month, days };
   });
@@ -562,36 +578,50 @@ const Home = () => {
                     {days.map((day, di) => {
                       const d = day.date ? new Date(day.date + 'T00:00:00') : null;
                       const label = d ? d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '';
+                      let base = '';
+                      switch (day.status) {
+                        case 'met':
+                          base = 'bg-emerald-500 shadow-md shadow-emerald-900/40 hover:bg-emerald-400';
+                          break;
+                        case 'dark':
+                          base = 'bg-orange-500 shadow-md shadow-orange-900/40 hover:bg-orange-400';
+                          break;
+                        case 'light':
+                          base = 'bg-orange-600/60 hover:bg-orange-500/80 border border-orange-400/20';
+                          break;
+                        default:
+                          base = 'bg-white/10 hover:bg-white/20 border border-white/5';
+                          break;
+                      }
+
+                      if (day.isToday) {
+                        if (day.status === 'blank') base = 'bg-white/20 hover:bg-white/30 border border-white/10';
+                        base += ' ring-[1px] ring-offset-[#0b0f14] ring-offset-1 ring-white/50';
+                      }
+
+                      const dayCss = !day.date ? 'invisible group relative w-3 h-3 rounded-sm' : `${base} cursor-pointer relative w-3 h-3 rounded-sm transition-all duration-200 group`;
+
+                      const tipBg = day.status === 'met' ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-400' 
+                                  : day.status !== 'blank' ? 'bg-orange-950/90 border-orange-500/40 text-orange-400' 
+                                  : 'bg-[#0d1117] border-white/10 text-gray-400';
+                      
+                      const tipArrow = day.status === 'met' ? 'border-t-emerald-900/90' 
+                                     : day.status !== 'blank' ? 'border-t-orange-900/90' 
+                                     : 'border-t-[#0d1117]';
+
                       return (
-                        <div
-                          key={di}
-                          className={`relative w-3 h-3 rounded-sm transition-all duration-200 group ${
-                            !day.date
-                              ? 'invisible'
-                              : day.isToday
-                              ? day.active
-                                ? 'bg-orange-400 ring-1 ring-orange-300/60 cursor-pointer shadow-lg shadow-orange-900/40'
-                                : 'bg-white/20 ring-1 ring-white/40 cursor-pointer'
-                              : day.active
-                              ? 'bg-emerald-500 hover:bg-emerald-400 cursor-pointer shadow-md shadow-emerald-900/20'
-                              : 'bg-white/10 hover:bg-white/20 border border-white/5 cursor-pointer'
-                          }`}
-                        >
+                        <div key={di} className={dayCss}>
                           {/* CSS Hover Tooltip */}
                           {day.date && (
                             <div className="absolute bottom-full left-1/2 -ml-[1px] -translate-x-1/2 mb-1.5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-[100]">
                               <div className="flex flex-col items-center">
-                                <div className={`px-3 py-2 rounded-xl text-xs font-semibold shadow-xl backdrop-blur-md border whitespace-nowrap ${
-                                  day.active ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-400' : 'bg-[#0d1117] border-white/10 text-gray-400'
-                                }`}>
-                                  <span className={`block font-black text-[11px] ${day.active ? 'text-white' : 'text-gray-300'}`}>{label}</span>
+                                <div className={`px-3 py-2 rounded-xl text-xs font-semibold shadow-xl backdrop-blur-md border whitespace-nowrap ${tipBg}`}>
+                                  <span className={`block font-black text-[11px] ${day.status !== 'blank' ? 'text-white' : 'text-gray-300'}`}>{label}</span>
                                   <span className="block text-[10px] mt-0.5 font-bold text-center">
-                                    {day.active ? '✅ Goal met' : 'No goal logged'}
+                                    {day.status === 'met' ? '✅ Goal met' : day.status !== 'blank' ? `⏳ ${day.cals} kcal logged` : 'No goal logged'}
                                   </span>
                                 </div>
-                                <div className={`w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent ${
-                                  day.active ? 'border-t-emerald-900/90' : 'border-t-[#0d1117]'
-                                }`} />
+                                <div className={`w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent ${tipArrow}`} />
                               </div>
                             </div>
                           )}

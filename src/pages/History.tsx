@@ -108,26 +108,6 @@ const History = () => {
 
         {/* Side info cards */}
         <div className="col-span-1 space-y-4">
-          <div className="glass rounded-2xl p-5">
-            <p className="text-[10px] text-gray-600 uppercase tracking-[0.15em] font-bold mb-3">
-              Coming soon
-            </p>
-            <div className="space-y-3">
-              {[
-                { icon: '📊', text: 'Daily calorie timeline' },
-                { icon: '🧮', text: 'Weekly macro breakdown' },
-                { icon: '🥗', text: 'Most-used ingredients'  },
-                { icon: '🎯', text: 'Goal vs actual tracking' },
-                { icon: '📅', text: 'Meal calendar view'     },
-              ].map(({ icon, text }) => (
-                <div key={text} className="flex items-center gap-3 text-sm text-gray-500">
-                  <span>{icon}</span>
-                  <span>{text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div className="glass rounded-2xl px-5 py-4">
             <p className="text-[10px] text-gray-600 uppercase tracking-[0.15em] font-bold mb-2">
               How it works
