@@ -114,6 +114,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [],
   );
 
+  const rateHistoryEntry = useCallback((id: string, rating: number) => {
+    setHistory(prev => {
+      const next = prev.map(entry => entry.id === id ? { ...entry, rating } : entry);
+      localStorage.setItem(LS_HISTORY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const [goalDaysRecord, setGoalDaysRecord] = useState<Record<string, string[]>>(() => {
     const saved = load<any>(LS_GOALDAYS, {});
     if (Array.isArray(saved)) return { legacy: saved };
@@ -151,6 +159,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         clearActiveProfiles,
         history,
         addHistoryEntry,
+        rateHistoryEntry,
         goalDays: activeGoalDays,
         markGoalDay,
       }}

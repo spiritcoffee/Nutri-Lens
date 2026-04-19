@@ -2,7 +2,7 @@ import { useAuth } from '../context/useAuth';
 import { useNavigate } from 'react-router-dom';
 
 const History = () => {
-  const { activeProfiles, history } = useAuth();
+    const { activeProfiles, history, rateHistoryEntry } = useAuth();
   const navigate = useNavigate();
 
   const activeIds = new Set(activeProfiles.map(p => p.id));
@@ -82,6 +82,29 @@ const History = () => {
                           hour: '2-digit', minute: '2-digit'
                         })}
                       </p>
+                      
+                      {/* ⭐ Interactive Star Rating ⭐ */}
+                      <div className="flex items-center gap-1 mt-3">
+                        {[1, 2, 3, 4, 5].map(star => (
+                          <button
+                            key={star}
+                            onClick={() => rateHistoryEntry(entry.id, star)}
+                            className={`text-2xl transition-all hover:scale-125 cursor-pointer leading-none ${
+                              entry.rating && entry.rating >= star
+                                ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]'
+                                : 'text-gray-700 hover:text-amber-400/50'
+                            }`}
+                          >
+                            ★
+                          </button>
+                        ))}
+                        {entry.rating ? (
+                          <span className="ml-3 text-[10px] font-black uppercase tracking-wider text-amber-500/80 bg-amber-500/10 px-2 py-0.5 rounded-lg">Rated {entry.rating}/5</span>
+                        ) : (
+                          <span className="ml-3 text-[10px] uppercase font-bold tracking-wider text-gray-600">Rate this recipe</span>
+                        )}
+                      </div>
+                      
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <span className="bg-emerald-500/10 text-emerald-400 font-black text-lg px-3 py-1 rounded-xl">

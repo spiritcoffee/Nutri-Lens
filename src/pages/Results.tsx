@@ -206,7 +206,7 @@ const MealCard = ({ meal, rank, onSelect }: { meal: Meal; rank: number; onSelect
 
 /* ══ RESULTS PAGE ═══════════════════════════════════════════════════════ */
 const Results = () => {
-  const { activeProfiles, addHistoryEntry } = useAuth();
+  const { activeProfiles, addHistoryEntry, history } = useAuth();
   const navigate = useNavigate();
 
   /* Derive ingredients + macros once (stable across renders) */
@@ -288,6 +288,14 @@ const Results = () => {
         (p.dietaryPreferences?.length ? `, diet: ${p.dietaryPreferences.join(', ')}` : '')
       ).join('\n');
 
+      const activeIds = activeProfiles.map(p => p.id);
+      const likedMeals = history.filter(e => (e.rating || 0) >= 4 && e.profileIds.some(id => activeIds.includes(id))).map(e => e.mealName);
+      const dislikedMeals = history.filter(e => e.rating && e.rating <= 2 && e.profileIds.some(id => activeIds.includes(id))).map(e => e.mealName);
+      
+      const preferenceInstructions = 
+        (likedMeals.length ? `\n- The user HIGHLY RATED and PREFERS recipes similar to: ${likedMeals.slice(0,5).join(', ')}.` : '') +
+        (dislikedMeals.length ? `\n- The user DISLIKED recipes similar to: ${dislikedMeals.slice(0,5).join(', ')}. DO NOT recommend these styles.` : '');
+
       const prompt = `You are an expert nutritionist and chef.
 Based on the PROFILES and the REAL RECIPES provided below, select up to 6 recipes that best fit the users' goals.
 
@@ -302,7 +310,7 @@ STRICT RULES:
 - Divide the recipes into TWO separate categories:
   1. "exactMeals": Recipes that require EXACTLY OR FEWER ingredients than what the user provided (Additional Ingredients Needed: 0). If you invent a recipe for this list, it CANNOT use ANY ingredients outside of: ${ingredients.join(', ')}. Wait, water, salt, and pepper are free ingredients. If no valid recipe can be made, leave this array EMPTY.
   2. "additionalMeals": Recipes that require some additional ingredients (Additional Ingredients Needed > 0).
-- Select a combined total of up to 6 recipes that best align with the given user goals.
+- Select a combined total of up to 6 recipes that best align with the given user goals.${preferenceInstructions}
 - Extract their precise macros, cook time, ingredients, and instructions from the provided text.
 - Health score must be a decimal out of 5.0 (map Spoonacular's 0-100 score to 1.0-5.0).
 - Provide practical tips for cooking or meeting the nutrition goals.

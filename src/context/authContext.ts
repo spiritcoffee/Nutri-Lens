@@ -33,6 +33,7 @@ export interface MealHistoryEntry {
   carbs: number;     // g
   fat: number;       // g
   ingredients: string[];
+  rating?: number;   // 1 to 5
 }
 
 export interface AuthContextValue {
@@ -60,6 +61,8 @@ export interface AuthContextValue {
   markGoalDay: (dateStr: string) => void;
   /** Record a new meal into the user's history */
   addHistoryEntry: (entry: Omit<MealHistoryEntry, 'id' | 'timestamp'>) => void;
+  /** Rate a past meal to influence AI */
+  rateHistoryEntry: (id: string, rating: number) => void;
 }
 
 /* ── Context object (no components here — satisfies react-refresh) ── */
