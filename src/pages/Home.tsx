@@ -237,20 +237,34 @@ const Home = () => {
       const tdee = bmr * 1.375;
       
       const bmi = p.weight / ((p.height / 100) ** 2);
-      let calTarget = tdee;
-      let proTarget = 1.6 * p.weight;
-      
-      if (bmi < 18.5) {
-        calTarget += 400; // Healthy surplus to gain weight
-        proTarget = 1.8 * p.weight;
-      } else if (bmi >= 25) {
-        calTarget -= 500; // Healthy deficit to lose weight
-        const idealWeight = 22 * ((p.height / 100) ** 2);
-        proTarget = 1.6 * idealWeight; // Prevent huge protein targets
+      const idealWeight = 22 * ((p.height / 100) ** 2);
+      const activeWeight = bmi >= 25 ? idealWeight : p.weight;
+
+      let calAdjustment = 0;
+      let proTarget = 1.6 * activeWeight;
+
+      // 1. Goal-based overrides
+      if (p.goal === 'muscle-gain') {
+        calAdjustment = 300;            // Caloric surplus for anabolism
+        proTarget = 2.2 * activeWeight; // High protein
+      } else if (p.goal === 'weight-loss') {
+        calAdjustment = -500;           // Deficit
+        proTarget = 1.8 * activeWeight; // Protein to preserve lean mass
+      } else if (p.goal === 'maintenance') {
+        calAdjustment = 0;              // Neutral
       }
-      
-      const fatTarget = (calTarget * 0.25) / 9;
-      const carbTarget = (calTarget - (proTarget * 4) - (fatTarget * 9)) / 4;
+
+      // 2. BMI Safety Guardrails (Overrides)
+      if (bmi < 18.5) {
+        calAdjustment = Math.max(calAdjustment, 400); // Enforce surplus for underweight profiles
+        proTarget = Math.max(proTarget, 1.8 * activeWeight);
+      } else if (bmi >= 25) {
+        calAdjustment = Math.min(calAdjustment, -300); // Enforce slight deficit for overweight profiles (body recomp)
+      }
+
+      const calTarget = tdee + calAdjustment;
+      const fatTarget = (calTarget * 0.25) / 9; // 25% fat
+      const carbTarget = Math.max(0, (calTarget - (proTarget * 4) - (fatTarget * 9)) / 4);
       
       sumCals += calTarget;
       sumPro += proTarget;
