@@ -39,9 +39,9 @@ const Ring = ({
           <span className="text-[9px] text-gray-500 font-bold uppercase">{unit}</span>
         </div>
       </div>
-      <div className="text-center">
+      <div className="text-center mt-1">
         <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">{label}</p>
-        <p className={`text-xs font-semibold mt-0.5 ${over ? 'text-red-400' : 'text-gray-400'}`}>
+        <p className={`text-[10px] font-semibold mt-1 ${over ? 'text-red-400' : 'text-gray-400'}`}>
           {over ? `+${value - max} over` : `${max - value} remaining`} / {max} {unit}
         </p>
       </div>
@@ -57,8 +57,8 @@ const MiniBar = ({ label, consumed, target, color, unit }: {
   const over = consumed > target;
   return (
     <div>
-      <div className="flex items-baseline justify-between mb-1.5">
-        <span className="text-gray-400 text-xs font-medium">{label}</span>
+      <div className="flex items-baseline justify-between mb-1.5 gap-2">
+        <span className="text-gray-400 text-xs font-medium truncate min-w-0">{label}</span>
         <span className={`text-sm font-black ${over ? 'text-red-400' : 'text-white'}`}>
           {consumed}<span className="text-gray-600 text-[10px] ml-0.5">{unit}</span>
           <span className="text-gray-600 text-[10px] ml-1">/ {target}{unit}</span>
@@ -88,9 +88,9 @@ const DailyHistoryGraph = ({
     <div className="flex flex-col gap-3">
       <div className="relative" style={{ height: height + 20 }}>
         {/* Y-Axis Label (Target) */}
-        <div className="absolute left-0 right-0 border-t border-white/20"
+        <div className="absolute left-0 right-0 border-t border-white/20 z-0"
              style={{ top: `${(1 - target / maxVal) * height}px` }}>
-          <span className="absolute -top-4 right-0 text-[8px] font-black text-gray-400 uppercase tracking-tighter">
+          <span className="absolute -top-4 left-0 text-[8px] font-black text-white/40 uppercase tracking-tighter px-1.5 py-0.5 bg-black/60 backdrop-blur rounded-md border border-white/5">
             Goal: {target}{unit}
           </span>
         </div>
