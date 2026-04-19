@@ -227,23 +227,42 @@ const Home = () => {
   const isGroup = activeProfiles.length > 1;
   const primary = activeProfiles[0];
 
-  /* ── Avg TDEE across all active profiles ── */
-  const avgTdee = activeProfiles.length
-    ? Math.round(activeProfiles.reduce((sum, p) => {
-        const bmr = p.gender === 'Female'
-          ? 10 * p.weight + 6.25 * p.height - 5 * p.age - 161
-          : 10 * p.weight + 6.25 * p.height - 5 * p.age + 5;
-        return sum + bmr * 1.375;
-      }, 0) / activeProfiles.length)
-    : 2000;
+  /* ── Daily macro targets adjusted for BMI ── */
+  let sumCals = 0, sumPro = 0, sumFat = 0, sumCarbs = 0;
+  if (activeProfiles.length > 0) {
+    activeProfiles.forEach(p => {
+      const bmr = p.gender === 'Female'
+        ? 10 * p.weight + 6.25 * p.height - 5 * p.age - 161
+        : 10 * p.weight + 6.25 * p.height - 5 * p.age + 5;
+      const tdee = bmr * 1.375;
+      
+      const bmi = p.weight / ((p.height / 100) ** 2);
+      let calTarget = tdee;
+      let proTarget = 1.6 * p.weight;
+      
+      if (bmi < 18.5) {
+        calTarget += 400; // Healthy surplus to gain weight
+        proTarget = 1.8 * p.weight;
+      } else if (bmi >= 25) {
+        calTarget -= 500; // Healthy deficit to lose weight
+        const idealWeight = 22 * ((p.height / 100) ** 2);
+        proTarget = 1.6 * idealWeight; // Prevent huge protein targets
+      }
+      
+      const fatTarget = (calTarget * 0.25) / 9;
+      const carbTarget = (calTarget - (proTarget * 4) - (fatTarget * 9)) / 4;
+      
+      sumCals += calTarget;
+      sumPro += proTarget;
+      sumFat += fatTarget;
+      sumCarbs += carbTarget;
+    });
+  }
 
-  /* ── Daily macro targets ── */
-  const avgWeight = activeProfiles.length
-    ? Math.round(activeProfiles.reduce((s, p) => s + p.weight, 0) / activeProfiles.length)
-    : 70;
-  const targetProtein = Math.round(avgWeight * 1.6);
-  const targetFat     = Math.round((avgTdee * 0.25) / 9);
-  const targetCarbs   = Math.round((avgTdee - targetProtein * 4 - targetFat * 9) / 4);
+  const avgTdee = activeProfiles.length ? Math.round(sumCals / activeProfiles.length) : 2000;
+  const targetProtein = activeProfiles.length ? Math.round(sumPro / activeProfiles.length) : 140;
+  const targetFat = activeProfiles.length ? Math.round(sumFat / activeProfiles.length) : 55;
+  const targetCarbs = activeProfiles.length ? Math.round(sumCarbs / activeProfiles.length) : 236;
 
   /* ── Auto-refresh across midnight ── */
   const [now, setNow] = useState(new Date());
