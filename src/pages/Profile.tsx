@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { useAuth } from '../context/useAuth';
+import confetti from 'canvas-confetti';
 
 /* ── SVG Radial Ring chart ─────────────────────────────── */
 const Ring = ({
@@ -126,6 +128,49 @@ const DailyHistoryGraph = ({
       </div>
     </div>
   );
+};
+
+/* ── Confetti Logic ────────────────────────────────────── */
+const GoalCelebrator = ({
+  profileId, calories, calorieTarget, protein, proteinTarget
+}: {
+  profileId: string; calories: number; calorieTarget: number; protein: number; proteinTarget: number;
+}) => {
+  useEffect(() => {
+    // Only celebrate if BOTH goals are met
+    if (calories >= calorieTarget && protein >= proteinTarget) {
+      const today = new Date().toISOString().split('T')[0];
+      const storageKey = `nutrilens_confetti_${profileId}_${today}`;
+      
+      const alreadyFired = localStorage.getItem(storageKey);
+      if (!alreadyFired) {
+        // High-end burst effect
+        const count = 200;
+        const defaults = {
+          origin: { y: 0.7 },
+          zIndex: 9999,
+        };
+
+        function fire(particleRatio: number, opts: confetti.Options) {
+          confetti({
+            ...defaults,
+            ...opts,
+            particleCount: Math.floor(count * particleRatio)
+          });
+        }
+
+        fire(0.25, { spread: 26, startVelocity: 55 });
+        fire(0.2, { spread: 60 });
+        fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+        fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+        fire(0.1, { spread: 120, startVelocity: 45 });
+
+        localStorage.setItem(storageKey, 'true');
+      }
+    }
+  }, [calories, calorieTarget, protein, proteinTarget, profileId]);
+
+  return null;
 };
 
 /* ════════════════════════════════════════════════════════ */
@@ -279,6 +324,15 @@ const Profile = () => {
 
                   {/* ── RIGHT PANEL: Analytics (60%) ───────────── */}
                   <div className="flex-1 p-8 lg:p-12 space-y-12 bg-black/5">
+                    
+                    {/* Confetti Trigger */}
+                    <GoalCelebrator 
+                      profileId={p.id}
+                      calories={consumed.calories}
+                      calorieTarget={tdee}
+                      protein={consumed.protein}
+                      proteinTarget={protein}
+                    />
                     
                     {/* Today's Intake Dashboard */}
                     <div>
