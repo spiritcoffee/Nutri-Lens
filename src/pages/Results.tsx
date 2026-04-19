@@ -302,6 +302,7 @@ STRICT RULES:
 - If no candidate recipes were found, generate 6 healthy Indian home-cooking recipes using the available ingredients.
 - Health score must be a decimal out of 5.0 (map Spoonacular's 0-100 score to 1.0-5.0).
 - Provide practical tips for cooking or meeting the nutrition goals.
+- IMPORTANT: Instructions must be DETAILED and ELABORATE. Each step should include specific cooking times, temperatures, techniques, sensory cues (e.g. "cook until golden brown"), and the reason behind the action. Aim for at least 6-8 steps per recipe, with each step being 2-3 sentences long.
 
 Respond with ONLY this JSON (no markdown, no explanation):
 {
@@ -315,9 +316,9 @@ Respond with ONLY this JSON (no markdown, no explanation):
       "fat": <number in grams>,
       "healthScore": <decimal 1.0-5.0>,
       "cookTime": <number in minutes>,
-      "ingredients": ["ingredient1", "ingredient2"],
+      "ingredients": ["ingredient1 with amount", "ingredient2 with amount"],
       "tips": "one practical cooking tip",
-      "instructions": ["Step 1 description...", "Step 2 description...", "Step 3 description..."]
+      "instructions": ["Step 1: Detailed instruction with time, temperature, and technique...", "Step 2: ...", "Step 3: ..."]
     }
   ]
 }`;
@@ -333,7 +334,7 @@ Respond with ONLY this JSON (no markdown, no explanation):
             messages: [{ role: 'user', content: prompt }],
             response_format: { type: 'json_object' },
             temperature: 0.7,
-            max_tokens: 1500,
+            max_tokens: 4000,
           });
 
           const raw = completion.choices[0]?.message?.content ?? '';
@@ -522,14 +523,16 @@ Respond with ONLY this JSON (no markdown, no explanation):
               </div>
 
               <div>
-                <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-3">Step-by-Step Instructions</h3>
-                <ol className="space-y-4">
+                <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-4">Step-by-Step Instructions</h3>
+                <ol className="space-y-5">
                   {selectedMeal.instructions?.map((step, idx) => (
-                    <li key={idx} className="flex gap-4 items-start text-gray-300 text-sm leading-relaxed">
-                      <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-400 font-bold text-xs border border-emerald-500/20">
+                    <li key={idx} className="flex gap-4 items-start">
+                      <span className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-full bg-emerald-500/15 text-emerald-400 font-black text-xs border border-emerald-500/30 mt-0.5">
                         {idx + 1}
                       </span>
-                      <span className="pt-0.5">{step}</span>
+                      <div className="flex-1 bg-white/3 border border-white/6 rounded-xl px-4 py-3">
+                        <p className="text-gray-200 text-sm leading-7">{step}</p>
+                      </div>
                     </li>
                   ))}
                   {(!selectedMeal.instructions || selectedMeal.instructions.length === 0) && (
