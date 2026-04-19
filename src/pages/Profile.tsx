@@ -84,27 +84,55 @@ const Profile = () => {
                 </div>
 
                 {/* Macro targets */}
-                <div className="px-7 py-5">
-                  <p className="text-[10px] text-gray-500 uppercase tracking-[0.15em] font-bold mb-4">
-                    Est. Daily Macro Targets
-                  </p>
-                  <div className="grid grid-cols-3 gap-4">
-                    {[
-                      { label:'Protein', value:protein, unit:'g', bar:'bg-blue-500',  pct: Math.min(100, protein*4/tdee*100) },
-                      { label:'Carbs',   value:carbs,   unit:'g', bar:'bg-purple-500', pct: Math.min(100, carbs*4/tdee*100)  },
-                      { label:'Fat',     value:fat,     unit:'g',  bar:'bg-rose-500',  pct: Math.min(100, fat*9/tdee*100)    },
-                    ].map(({ label, value, unit, bar, pct }) => (
-                      <div key={label}>
-                        <div className="flex items-baseline justify-between mb-1.5">
-                          <span className="text-gray-400 text-xs font-medium">{label}</span>
-                          <span className="text-white text-sm font-black">{value}<span className="text-gray-600 text-[10px] ml-0.5">{unit}</span></span>
+                <div className="px-7 py-5 space-y-6">
+                  {/* Daily */}
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-[0.15em] font-bold mb-4">
+                      Est. Daily Macro Targets
+                    </p>
+                    <div className="grid grid-cols-4 gap-4">
+                      {[
+                        { label:'Calories', value:tdee,    unit:'kcal', bar:'bg-emerald-500', pct: 100 },
+                        { label:'Protein',  value:protein, unit:'g',    bar:'bg-blue-500',    pct: Math.min(100, protein*4/tdee*100) },
+                        { label:'Carbs',    value:carbs,   unit:'g',    bar:'bg-purple-500',  pct: Math.min(100, carbs*4/tdee*100)  },
+                        { label:'Fat',      value:fat,     unit:'g',    bar:'bg-rose-500',    pct: Math.min(100, fat*9/tdee*100)    },
+                      ].map(({ label, value, unit, bar, pct }) => (
+                        <div key={label}>
+                          <div className="flex items-baseline justify-between mb-1.5">
+                            <span className="text-gray-400 text-xs font-medium">{label}</span>
+                            <span className="text-white text-sm font-black">{value}<span className="text-gray-600 text-[10px] ml-0.5">{unit}</span></span>
+                          </div>
+                          <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                            <div className={`h-full ${bar} rounded-full opacity-80`} style={{ width: `${pct}%` }} />
+                          </div>
                         </div>
-                        <div className="h-1.5 rounded-full bg-white/5">
-                          <div className={`h-1.5 rounded-full ${bar}/70`} style={{ width: `${pct}%` }} />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Weekly */}
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-[0.15em] font-bold mb-4">
+                      Est. Weekly Macro Targets
+                    </p>
+                    <div className="grid grid-cols-4 gap-4">
+                      {[
+                        { label:'Calories', value:tdee*7,    unit:'kcal', bar:'bg-emerald-500', pct: 100 },
+                        { label:'Protein',  value:protein*7, unit:'g',    bar:'bg-blue-500',    pct: Math.min(100, protein*4/tdee*100) },
+                        { label:'Carbs',    value:carbs*7,   unit:'g',    bar:'bg-purple-500',  pct: Math.min(100, carbs*4/tdee*100)  },
+                        { label:'Fat',      value:fat*7,     unit:'g',    bar:'bg-rose-500',    pct: Math.min(100, fat*9/tdee*100)    },
+                      ].map(({ label, value, unit, bar, pct }) => (
+                        <div key={label}>
+                          <div className="flex items-baseline justify-between mb-1.5">
+                            <span className="text-gray-400 text-xs font-medium">{label}</span>
+                            <span className="text-white text-sm font-black">{value}<span className="text-gray-600 text-[10px] ml-0.5">{unit}</span></span>
+                          </div>
+                          <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                            <div className={`h-full ${bar} rounded-full opacity-80`} style={{ width: `${pct}%` }} />
+                          </div>
                         </div>
-                        <p className="text-gray-700 text-[10px] mt-1">{Math.round(pct)}% of TDEE</p>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>

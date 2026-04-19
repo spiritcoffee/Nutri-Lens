@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import type { NutriProfile, NutriGoal, DietaryPref } from '../context/authContext';
 
 /* ── AVATARS ── */
-const AVATARS = ['👤','👦','👧','👨','👩','👴','👵','🧑','👨‍🍳','👩‍🍳','🏃','🧘'];
+const AVATARS = ['👤','👦','👧','👨','👩','👴','👵','🧑','👨‍🍳','👩‍🍳'];
 const GOALS: { value: NutriGoal; label: string }[] = [
   { value: 'weight-loss',    label: '⚖️ Weight Loss'   },
   { value: 'muscle-gain',    label: '💪 Muscle Gain'   },
@@ -245,10 +245,20 @@ const Home = () => {
   const targetFat     = Math.round((avgTdee * 0.25) / 9);
   const targetCarbs   = Math.round((avgTdee - targetProtein * 4 - targetFat * 9) / 4);
 
+  /* ── Auto-refresh across midnight ── */
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
   /* ── Today's consumed ── */
-  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-  const todayMs   = todayStart.getTime();
-  const todayStr  = todayStart.toISOString().split('T')[0];
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayMs = todayStart.getTime();
+
+  // Local YYYY-MM-DD avoids timezone skew from toISOString()
+  const todayStr = `${todayStart.getFullYear()}-${String(todayStart.getMonth() + 1).padStart(2, '0')}-${String(todayStart.getDate()).padStart(2, '0')}`;
   const activeIds = new Set(activeProfiles.map(p => p.id));
 
   const consumed = history
