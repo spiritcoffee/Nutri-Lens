@@ -174,6 +174,8 @@ export async function fetchSpoonacularCandidates(ingredients: string[], number =
     url.searchParams.set('addRecipeNutrition', 'true');
     url.searchParams.set('fillIngredients', 'true');
     url.searchParams.set('instructionsRequired', 'true');
+    url.searchParams.set('sort', 'max-used-ingredients'); // Prioritize recipes with fewer missing ingredients
+    url.searchParams.set('ranking', '2'); // Minimize missing ingredients
     url.searchParams.set('number', String(number));
 
     const res = await fetch(url.toString());

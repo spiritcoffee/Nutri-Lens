@@ -224,7 +224,8 @@ const Results = () => {
       ? 'VITE_GROQ_API_KEY is not set in .env.local — add your Groq API key to enable AI meal suggestions.'
       : null;
 
-  const [meals,   setMeals]   = useState<Meal[]>([]);
+  const [exactMeals, setExactMeals] = useState<Meal[]>([]);
+  const [additionalMeals, setAdditionalMeals] = useState<Meal[]>([]);
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [loading, setLoading] = useState(initError === null);
   const [error,   setError]   = useState<string | null>(initError);
@@ -260,6 +261,7 @@ const Results = () => {
       const candidateText = candidates.map(c => {
         let text = `- Title: ${c.title}\n`;
         text += `  Cook Time: ${c.readyInMinutes}m, Health Score: ${c.healthScore}\n`;
+        text += `  Additional Ingredients Needed: ${c.missedIngredientCount ?? 0}\n`;
         if (c.nutrition && c.nutrition.nutrients) {
           const cals = Math.round(c.nutrition.nutrients.find((n:any) => n.name==='Calories')?.amount || 0);
           const pro = Math.round(c.nutrition.nutrients.find((n:any) => n.name==='Protein')?.amount || 0);
@@ -287,7 +289,7 @@ const Results = () => {
       ).join('\n');
 
       const prompt = `You are an expert nutritionist and chef.
-Based on the PROFILES and the REAL RECIPES provided below, select exactly 6 recipes that best fit the users' goals.
+Based on the PROFILES and the REAL RECIPES provided below, select up to 6 recipes that best fit the users' goals.
 
 USER PROFILES:
 ${profileSummaries || '• No specific profile provided'}
@@ -296,17 +298,19 @@ CANDIDATE RECIPES (from Spoonacular Database):
 ${candidateText ? candidateText : 'No database recipes found. Fall back to your own recipe generation based on these ingredients: ' + ingredients.join(', ')}
 
 STRICT RULES:
-- If Candidate Recipes are provided, ONLY choose from them. DO NOT INVENT RECIPES.
-- Select the 6 recipes that best align with the given user goals (e.g., high protein for muscle gain).
+- If Candidate Recipes are provided, ONLY choose from them. DO NOT INVENT RECIPES unless necessary.
+- Divide the recipes into TWO separate categories:
+  1. "exactMeals": Recipes that require EXACTLY OR FEWER ingredients than what the user provided (Additional Ingredients Needed: 0). If you invent a recipe for this list, it CANNOT use ANY ingredients outside of: ${ingredients.join(', ')}. Wait, water, salt, and pepper are free ingredients. If no valid recipe can be made, leave this array EMPTY.
+  2. "additionalMeals": Recipes that require some additional ingredients (Additional Ingredients Needed > 0).
+- Select a combined total of up to 6 recipes that best align with the given user goals.
 - Extract their precise macros, cook time, ingredients, and instructions from the provided text.
-- If no candidate recipes were found, generate 6 healthy Indian home-cooking recipes using the available ingredients.
 - Health score must be a decimal out of 5.0 (map Spoonacular's 0-100 score to 1.0-5.0).
 - Provide practical tips for cooking or meeting the nutrition goals.
-- IMPORTANT: Instructions must be DETAILED and ELABORATE. Each step should include specific cooking times, temperatures, techniques, sensory cues (e.g. "cook until golden brown"), and the reason behind the action. Aim for at least 6-8 steps per recipe, with each step being 2-3 sentences long.
+- IMPORTANT: Instructions must be DETAILED and ELABORATE. Each step should include specific cooking times, temperatures, techniques, and the reason behind the action. Aim for at least 6-8 steps per recipe.
 
 Respond with ONLY this JSON (no markdown, no explanation):
 {
-  "meals": [
+  "exactMeals": [
     {
       "name": "dish name",
       "description": "1-2 sentence description of the dish",
@@ -319,6 +323,11 @@ Respond with ONLY this JSON (no markdown, no explanation):
       "ingredients": ["ingredient1 with amount", "ingredient2 with amount"],
       "tips": "one practical cooking tip",
       "instructions": ["Step 1: Detailed instruction with time, temperature, and technique...", "Step 2: ...", "Step 3: ..."]
+    }
+  ],
+  "additionalMeals": [
+    {
+      // strictly follow the exact same schema as exactMeals
     }
   ]
 }`;
@@ -338,11 +347,12 @@ Respond with ONLY this JSON (no markdown, no explanation):
           });
 
           const raw = completion.choices[0]?.message?.content ?? '';
-          const parsed = JSON.parse(raw) as { meals?: Meal[] };
-          if (!parsed.meals || !Array.isArray(parsed.meals) || parsed.meals.length === 0)
+          const parsed = JSON.parse(raw) as { exactMeals?: Meal[], additionalMeals?: Meal[] };
+          if ((!parsed.exactMeals || !Array.isArray(parsed.exactMeals)) && (!parsed.additionalMeals || !Array.isArray(parsed.additionalMeals)))
             throw new Error('Unexpected response structure from AI');
 
-          setMeals(parsed.meals.slice(0, 6));
+          setExactMeals(parsed.exactMeals || []);
+          setAdditionalMeals(parsed.additionalMeals || []);
           return; // success — exit loop
         } catch (err: any) {
           const msg: string = err?.message ?? String(err);
@@ -631,22 +641,7 @@ Respond with ONLY this JSON (no markdown, no explanation):
           <p className="text-white text-sm font-bold">{ingredients.length} items</p>
         </div>
 
-        <div className="w-px h-8 bg-white/6 hidden sm:block" />
 
-        {/* Raw macros */}
-        <div className="flex gap-5 text-xs">
-          {[
-            { l: 'Est. Calories', v: `${estimatedMacros.calories}`, u: 'kcal', c: 'text-amber-400'  },
-            { l: 'Protein',       v: `${estimatedMacros.protein}`,  u: 'g',    c: 'text-blue-400'   },
-            { l: 'Carbs',         v: `${estimatedMacros.carbs}`,    u: 'g',    c: 'text-purple-400' },
-            { l: 'Fat',           v: `${estimatedMacros.fat}`,      u: 'g',    c: 'text-rose-400'   },
-          ].map(({ l, v, u, c }) => (
-            <div key={l}>
-              <p className="text-gray-600">{l}</p>
-              <p className={`font-black ${c}`}>{v}<span className="text-gray-700 font-normal text-[10px] ml-0.5">{u}</span></p>
-            </div>
-          ))}
-        </div>
 
         {/* Model badge */}
         <div className="ml-auto flex items-center gap-2 bg-emerald-950/50 border border-emerald-800/30
@@ -656,16 +651,47 @@ Respond with ONLY this JSON (no markdown, no explanation):
         </div>
       </div>
 
-      {/* ── 6 meal cards ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {meals.map((meal, i) => (
-          <MealCard key={`${meal.name}-${i}`} meal={meal} rank={i}
-            onSelect={() => {
-              setSelectedMeal(meal);
-            }}
-          />
-        ))}
+      {/* ── Exact Meals ── */}
+      <div className="mb-12">
+        <h2 className="text-xl font-bold text-white mb-6">Cook Now (You have all ingredients)</h2>
+        {exactMeals.length === 0 ? (
+          <div className="glass flex flex-col items-center justify-center p-12 rounded-3xl border border-rose-500/10 bg-rose-500/5 text-center">
+            <span className="text-4xl mb-4">🛒</span>
+            <h3 className="text-white font-bold text-lg mb-2">No exact matches found</h3>
+            <p className="text-gray-400 text-sm max-w-md">There aren't any recipes available that use exactly or fewer than your selected ingredients. Try selecting more ingredients or check out the suggestions below!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {exactMeals.map((meal, i) => (
+              <MealCard key={`${meal.name}-${i}`} meal={meal} rank={i}
+                onSelect={() => {
+                  setSelectedMeal(meal);
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* ── Additional Meals ── */}
+      {additionalMeals.length > 0 && (
+        <div className="mb-12">
+          <div className="flex items-center gap-4 mb-1">
+            <h2 className="text-xl font-bold text-white">Worth the Grocery Run 🛒</h2>
+            <div className="h-px bg-white/10 flex-1" />
+          </div>
+          <p className="text-gray-400 text-sm mb-6">These delicious meals require just a few extra ingredients you don't have yet.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {additionalMeals.map((meal, i) => (
+              <MealCard key={`${meal.name}-${i}`} meal={meal} rank={i + exactMeals.length}
+                onSelect={() => {
+                  setSelectedMeal(meal);
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Bottom bar ── */}
       <div className="flex items-center justify-between py-2">
