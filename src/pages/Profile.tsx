@@ -172,10 +172,9 @@ const Profile = () => {
           <p className="text-gray-500 text-sm mt-2">Go back and select profiles from the selector.</p>
         </div>
       )}
-
-      {/* ══ PROFILE CARDS GRID ══════════════════════════════════════ */}
+      {/* ══ PROFILE DASHBOARDS ═══════════════════════════════════════ */}
       {activeProfiles.length > 0 && (
-        <div className="grid grid-cols-2 gap-6">
+        <div className="space-y-12">
           {activeProfiles.map(p => {
             const bmi      = p.weight / ((p.height / 100) ** 2);
             const bmiLabel = bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Normal' : bmi < 30 ? 'Overweight' : 'Obese';
@@ -216,147 +215,131 @@ const Profile = () => {
             });
 
             return (
-              <div key={p.id} className="glass rounded-3xl overflow-hidden">
-                {/* Card header */}
-                <div className="bg-gradient-to-r from-emerald-900/40 via-emerald-900/10 to-transparent
-                  px-7 py-6 border-b border-white/5 flex items-center gap-5">
-                  <span className="w-16 h-16 rounded-2xl bg-gray-800 border border-white/8
-                    flex items-center justify-center text-4xl">
-                    {p.avatar}
-                  </span>
-                  <div>
-                    <h2 className="text-white font-black text-xl">{p.name}</h2>
-                    <p className="text-gray-400 text-sm mt-0.5">
-                      {p.age} years · {p.gender} · {p.weight}kg · {p.height}cm
-                    </p>
-                  </div>
-                  <div className={`ml-auto px-3 py-1.5 rounded-xl text-xs font-bold border ${
-                    bmi < 25 ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10'
-                             : 'border-amber-500/40  text-amber-400  bg-amber-500/10'}`}>
-                    BMI {bmi.toFixed(1)}
-                  </div>
-                </div>
-
-                {/* Body stats row */}
-                <div className="grid grid-cols-4 divide-x divide-white/5 border-b border-white/5">
-                  {[
-                    { label:'Weight', value:`${p.weight}`, unit:'kg' },
-                    { label:'Height', value:`${p.height}`, unit:'cm' },
-                    { label:'BMI',    value:bmi.toFixed(1), unit:bmiLabel, color: bmiColor },
-                    { label:'TDEE',   value:`${tdee}`, unit:'kcal/day' },
-                  ].map(({ label, value, unit, color }) => (
-                    <div key={label} className="px-5 py-5">
-                      <p className="text-[10px] text-gray-600 uppercase tracking-widest font-bold mb-2">{label}</p>
-                      <p className={`text-2xl font-black ${color ?? 'text-white'}`}>{value}</p>
-                      <p className="text-gray-600 text-xs mt-0.5">{unit}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* ── Today's Intake ─────────────────────────────── */}
-                <div className="px-7 py-6 border-b border-white/5">
-                  <p className="text-[10px] text-gray-500 uppercase tracking-[0.15em] font-bold mb-6">
-                    Today's Intake
-                  </p>
-                  {todayEntries.length === 0 ? (
-                    <div className="flex items-center gap-3 text-gray-600 text-sm py-2">
-                      <span className="text-2xl">🍽️</span>
-                      No meals logged today yet
-                    </div>
-                  ) : (
-                    <>
-                      {/* Ring charts for calories & protein */}
-                      <div className="flex justify-around mb-6">
-                        <Ring value={consumed.calories} max={tdee}    color="#10b981" label="Calories" unit="kcal" size={130} />
-                        <Ring value={consumed.protein}  max={protein} color="#3b82f6" label="Protein"  unit="g"    size={130} />
+              <div key={p.id} className="glass rounded-[2rem] overflow-hidden border border-white/5 shadow-2xl">
+                <div className="flex flex-col lg:flex-row">
+                  
+                  {/* ── LEFT PANEL: Profile & Goals (40%) ─────── */}
+                  <div className="lg:w-[400px] border-r border-white/5 bg-black/20 flex flex-col">
+                    {/* Header */}
+                    <div className="px-8 py-8 border-b border-white/5 bg-gradient-to-b from-white/3 to-transparent">
+                      <div className="flex items-center gap-5">
+                        <span className="w-20 h-20 rounded-3xl bg-gray-800 border border-white/10
+                          flex items-center justify-center text-4xl shadow-inner">
+                          {p.avatar}
+                        </span>
+                        <div>
+                          <h2 className="text-white font-black text-2xl tracking-tight">{p.name}</h2>
+                          <p className="text-gray-500 text-sm font-medium mt-1">
+                            {p.age}y · {p.gender} · {p.weight}kg
+                          </p>
+                        </div>
                       </div>
-                      {/* Bar charts for carbs & fat */}
-                      <div className="space-y-3">
-                        <MiniBar label="Carbs" consumed={consumed.carbs} target={carbs} color="bg-purple-500" unit="g" />
-                        <MiniBar label="Fat"   consumed={consumed.fat}   target={fat}   color="bg-rose-500"   unit="g" />
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* ── 7-Day Progress Graphs ──────────────────────── */}
-                <div className="px-7 py-6 border-b border-white/5 bg-black/20">
-                  <p className="text-[10px] text-gray-500 uppercase tracking-[0.15em] font-bold mb-8">
-                    Daily Progress (Last 7 Days)
-                  </p>
-                  <div className="space-y-12">
-                    <div>
-                      <DailyHistoryGraph
-                        values={dailyHistory.map(d => ({ label: d.label, value: d.calories }))}
-                        target={tdee}
-                        color="#10b981"
-                        unit="kcal"
-                      />
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center mt-4">Calorie Intake</p>
                     </div>
-                    <div>
-                      <DailyHistoryGraph
-                        values={dailyHistory.map(d => ({ label: d.label, value: d.protein }))}
-                        target={protein}
-                        color="#3b82f6"
-                        unit="g"
-                      />
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center mt-4">Protein Intake</p>
+
+                    {/* Metabolic Summary */}
+                    <div className="p-8 space-y-8 flex-1">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="glass rounded-2xl p-4 border-white/5">
+                          <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">BMI Index</p>
+                          <p className={`text-xl font-black ${bmiColor}`}>{bmi.toFixed(1)}</p>
+                          <p className="text-[9px] text-gray-600 font-bold uppercase">{bmiLabel}</p>
+                        </div>
+                        <div className="glass rounded-2xl p-4 border-white/5">
+                          <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">TDEE Goal</p>
+                          <p className="text-xl font-black text-white">{tdee}</p>
+                          <p className="text-[9px] text-gray-600 font-bold uppercase">kcal / day</p>
+                        </div>
+                      </div>
+
+                      {/* Daily Macro Targets */}
+                      <div>
+                        <p className="text-[10px] text-emerald-400/80 uppercase tracking-[0.2em] font-black mb-5">
+                          Macro Targets
+                        </p>
+                        <div className="space-y-5">
+                          {[
+                            { label:'Protein Target', value:protein, unit:'g',    bar:'bg-blue-500',    pct: Math.min(100, protein*4/tdee*100) },
+                            { label:'Carbs Target',   value:carbs,   unit:'g',    bar:'bg-purple-500',  pct: Math.min(100, carbs*4/tdee*100)  },
+                            { label:'Fat Target',     value:fat,     unit:'g',    bar:'bg-rose-500',    pct: Math.min(100, fat*9/tdee*100)    },
+                          ].map(({ label, value, unit, bar, pct }) => (
+                            <div key={label}>
+                              <div className="flex items-baseline justify-between mb-2">
+                                <span className="text-gray-400 text-xs font-bold">{label}</span>
+                                <span className="text-white text-sm font-black">{value}<span className="text-gray-500 text-[10px] ml-0.5">{unit}</span></span>
+                              </div>
+                              <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                <div className={`h-full ${bar} rounded-full opacity-60`} style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Macro targets */}
-                <div className="px-7 py-5 space-y-6">
-                  {/* Daily */}
-                  <div>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-[0.15em] font-bold mb-4">
-                      Est. Daily Macro Targets
-                    </p>
-                    <div className="grid grid-cols-4 gap-4">
-                      {[
-                        { label:'Calories', value:tdee,    unit:'kcal', bar:'bg-emerald-500', pct: 100 },
-                        { label:'Protein',  value:protein, unit:'g',    bar:'bg-blue-500',    pct: Math.min(100, protein*4/tdee*100) },
-                        { label:'Carbs',    value:carbs,   unit:'g',    bar:'bg-purple-500',  pct: Math.min(100, carbs*4/tdee*100)  },
-                        { label:'Fat',      value:fat,     unit:'g',    bar:'bg-rose-500',    pct: Math.min(100, fat*9/tdee*100)    },
-                      ].map(({ label, value, unit, bar, pct }) => (
-                        <div key={label}>
-                          <div className="flex items-baseline justify-between mb-1.5">
-                            <span className="text-gray-400 text-xs font-medium">{label}</span>
-                            <span className="text-white text-sm font-black">{value}<span className="text-gray-600 text-[10px] ml-0.5">{unit}</span></span>
+                  {/* ── RIGHT PANEL: Analytics (60%) ───────────── */}
+                  <div className="flex-1 p-8 lg:p-12 space-y-12 bg-black/5">
+                    
+                    {/* Today's Intake Dashboard */}
+                    <div>
+                      <div className="flex items-center justify-between mb-10">
+                        <h3 className="text-white font-black text-xl tracking-tight">Today's Performance</h3>
+                        <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">
+                          Live Status
+                        </span>
+                      </div>
+                      
+                      {todayEntries.length === 0 ? (
+                        <div className="glass rounded-3xl p-10 text-center border-dashed border-white/10">
+                          <span className="text-4xl">🗓️</span>
+                          <p className="text-gray-400 font-bold mt-4">Start your day by logging a meal</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                          <div className="flex flex-col items-center gap-8">
+                             <div className="flex justify-around w-full">
+                                <Ring value={consumed.calories} max={tdee}    color="#10b981" label="Calories" unit="kcal" size={140} stroke={14} />
+                                <Ring value={consumed.protein}  max={protein} color="#3b82f6" label="Protein"  unit="g"    size={140} stroke={14} />
+                             </div>
                           </div>
-                          <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                            <div className={`h-full ${bar} rounded-full opacity-80`} style={{ width: `${pct}%` }} />
+                          <div className="space-y-6 flex flex-col justify-center">
+                            <MiniBar label="Total Carbs" consumed={consumed.carbs} target={carbs} color="bg-purple-500" unit="g" />
+                            <MiniBar label="Total Fats"  consumed={consumed.fat}   target={fat}   color="bg-rose-500"   unit="g" />
                           </div>
                         </div>
-                      ))}
+                      )}
+                    </div>
+
+                    <div className="h-px bg-white/5 w-full" />
+
+                    {/* History Trends */}
+                    <div>
+                      <h3 className="text-white font-black text-xl tracking-tight mb-10">Weekly Trends</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
+                        <div className="glass rounded-3xl p-8 bg-black/20 border-white/5">
+                           <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em] mb-8 text-center">Calorie History</p>
+                           <DailyHistoryGraph
+                            values={dailyHistory.map(d => ({ label: d.label, value: d.calories }))}
+                            target={tdee}
+                            color="#10b981"
+                            unit="kcal"
+                            height={100}
+                          />
+                        </div>
+                        <div className="glass rounded-3xl p-8 bg-black/20 border-white/5">
+                           <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em] mb-8 text-center">Protein History</p>
+                           <DailyHistoryGraph
+                            values={dailyHistory.map(d => ({ label: d.label, value: d.protein }))}
+                            target={protein}
+                            color="#3b82f6"
+                            unit="g"
+                            height={100}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Weekly */}
-                  <div>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-[0.15em] font-bold mb-4">
-                      Est. Weekly Macro Targets
-                    </p>
-                    <div className="grid grid-cols-4 gap-4">
-                      {[
-                        { label:'Calories', value:tdee*7,    unit:'kcal', bar:'bg-emerald-500', pct: 100 },
-                        { label:'Protein',  value:protein*7, unit:'g',    bar:'bg-blue-500',    pct: Math.min(100, protein*4/tdee*100) },
-                        { label:'Carbs',    value:carbs*7,   unit:'g',    bar:'bg-purple-500',  pct: Math.min(100, carbs*4/tdee*100)  },
-                        { label:'Fat',      value:fat*7,     unit:'g',    bar:'bg-rose-500',    pct: Math.min(100, fat*9/tdee*100)    },
-                      ].map(({ label, value, unit, bar, pct }) => (
-                        <div key={label}>
-                          <div className="flex items-baseline justify-between mb-1.5">
-                            <span className="text-gray-400 text-xs font-medium">{label}</span>
-                            <span className="text-white text-sm font-black">{value}<span className="text-gray-600 text-[10px] ml-0.5">{unit}</span></span>
-                          </div>
-                          <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                            <div className={`h-full ${bar} rounded-full opacity-80`} style={{ width: `${pct}%` }} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               </div>
             );
@@ -364,19 +347,17 @@ const Profile = () => {
         </div>
       )}
 
-      {/* ══ NOTE ════════════════════════════════════════════════════ */}
-      <div className="glass rounded-2xl px-6 py-4 flex items-start gap-3">
-        <span className="text-lg mt-0.5">💡</span>
-        <p className="text-gray-500 text-sm leading-relaxed">
-          TDEE uses the <strong className="text-gray-400">Mifflin-St Jeor formula</strong> at a lightly active multiplier (×1.375).
-          Macro targets use a 25% / 45% / 30% protein/carb/fat split.
-          Rings turn <strong className="text-red-400">red</strong> when you exceed a target.
+      {/* ══ FOOTER NOTE ═════════════════════════════════════════════ */}
+      <div className="glass rounded-3xl px-8 py-6 flex items-center gap-4 border-white/5">
+        <span className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-xl">💡</span>
+        <p className="text-gray-500 text-sm leading-relaxed max-w-2xl">
+          Stats are calculated using the <strong>Mifflin-St Jeor</strong> formula. 
+          Rings and historical charts turn <span className="text-red-400 font-bold uppercase text-[10px]">Red</span> if you exceed your daily targets.
         </p>
       </div>
     </div>
   );
 };
-
 
 export default Profile;
 
