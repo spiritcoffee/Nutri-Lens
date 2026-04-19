@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/useAuth';
 import { useNavigate } from 'react-router-dom';
 import type { NutriProfile, NutriGoal, DietaryPref } from '../context/authContext';
@@ -224,6 +224,38 @@ const Home = () => {
   const navigate = useNavigate();
   const [editingProfile, setEditingProfile] = useState<NutriProfile | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  const handleDayEnter = useCallback((e: React.MouseEvent<HTMLDivElement>, date: string, active: boolean) => {
+    const el = tooltipRef.current;
+    if (!el || !date) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const d = new Date(date + 'T00:00:00');
+    const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    el.style.left   = `${r.left + r.width / 2}px`;
+    el.style.top    = `${r.top - 10}px`;
+    el.style.transform = 'translate(-50%, -100%)';
+    const card  = el.querySelector<HTMLElement>('[data-card]');
+    const lbl   = el.querySelector<HTMLElement>('[data-label]');
+    const stat  = el.querySelector<HTMLElement>('[data-status]');
+    const arrow = el.querySelector<HTMLElement>('[data-arrow]');
+    if (lbl)  lbl.textContent  = label;
+    if (stat) stat.textContent = active ? '✅ Goal met' : 'No goal logged';
+    const green   = 'bg-emerald-950/90 border-emerald-500/40 text-white';
+    const neutral = 'bg-[#0d1117] border-white/10 text-gray-300';
+    if (card)  card.className  = `px-3 py-2 rounded-xl text-xs font-semibold shadow-xl backdrop-blur-md border whitespace-nowrap ${active ? green : neutral}`;
+    if (stat)  stat.className  = `text-[10px] mt-0.5 font-bold text-center ${active ? 'text-emerald-400' : 'text-gray-600'}`;
+    if (arrow) arrow.className = `w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent ${active ? 'border-t-emerald-900' : 'border-t-[#0d1117]'}`;
+    el.style.opacity    = '1';
+    el.style.visibility = 'visible';
+  }, []);
+
+  const handleDayLeave = useCallback(() => {
+    const el = tooltipRef.current;
+    if (!el) return;
+    el.style.opacity    = '0';
+    el.style.visibility = 'hidden';
+  }, []);
 
   const isGroup = activeProfiles.length > 1;
   const primary = activeProfiles[0];
@@ -368,6 +400,13 @@ const Home = () => {
           50%      { box-shadow: 0 0 0 8px rgba(251,146,60,0); }
         }
         .streak-fire { animation: streak-pulse 2s ease infinite; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes tooltip-in {
+          0%   { opacity: 0; transform: translateY(4px) scale(0.95); }
+          100% { opacity: 1; transform: translateY(0)   scale(1); }
+        }
+        .day-tooltip { animation: tooltip-in 0.12s ease both; }
       `}</style>
 
       {/* ── Celebration overlay ── */}
@@ -487,9 +526,22 @@ const Home = () => {
           </div>
 
           {/* ── Streak heatmap ── */}
+          {/* ── CTA button ── */}
+          <button
+            onClick={() => navigate('/scan')}
+            className="w-full py-4 rounded-2xl flex items-center justify-center gap-3
+              bg-gradient-to-r from-emerald-600 to-emerald-500
+              hover:from-emerald-500 hover:to-emerald-400
+              text-gray-950 font-black text-base
+              shadow-xl shadow-emerald-900/40
+              transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] cursor-pointer">
+            🍽️ Let's Build a Meal
+          </button>
+
+          {/* ── Streak heatmap ── */}
           <div className="glass rounded-3xl p-6">
             {/* Header row */}
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <h2 className="text-white font-bold text-base">Goal Streak</h2>
                 {currentStreak > 0 && (
@@ -506,7 +558,6 @@ const Home = () => {
                 <span className="text-gray-600 text-xs">
                   Total: <span className="text-white font-bold">{goalDays.length}</span> days
                 </span>
-                {/* Year selector */}
                 <select
                   value={selectedYear}
                   onChange={e => setSelectedYear(Number(e.target.value))}
@@ -520,23 +571,23 @@ const Home = () => {
               </div>
             </div>
 
-            {/* Monthly grids */}
-            <div className="grid grid-cols-4 gap-4">
+            {/* Single-row horizontal scroll — all 12 months side by side */}
+            <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar">
               {monthGrids.map(({ month, days }) => (
-                <div key={month}>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1.5">{month}</p>
-                  {/* Day-of-week header */}
-                  <div className="grid grid-cols-7 gap-0.5 mb-0.5">
+                <div key={month} className="flex-shrink-0">
+                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1 text-center">{month}</p>
+                  <div className="grid grid-cols-7 gap-px mb-px">
                     {['M','T','W','T','F','S','S'].map((d,i) => (
-                      <div key={i} className="text-[8px] text-gray-700 text-center">{d}</div>
+                      <div key={i} className="w-3 text-[7px] text-gray-700 text-center">{d}</div>
                     ))}
                   </div>
-                  <div className="grid grid-cols-7 gap-0.5">
+                  <div className="grid grid-cols-7 gap-px">
                     {days.map((day, di) => (
                       <div
                         key={di}
-                        title={day.date || undefined}
-                        className={`aspect-square rounded-sm transition-all duration-200 ${
+                        onMouseEnter={day.date ? (e) => handleDayEnter(e, day.date, day.active) : undefined}
+                        onMouseLeave={day.date ? handleDayLeave : undefined}
+                        className={`w-3 h-3 rounded-sm transition-all duration-200 ${
                           !day.date
                             ? 'invisible'
                             : day.isToday
@@ -553,29 +604,9 @@ const Home = () => {
                 </div>
               ))}
             </div>
-
-            {/* Legend */}
-            <div className="flex items-center justify-end mt-4 gap-1.5 text-[10px] text-gray-600">
-              <span>Less</span>
-              {['bg-white/5','bg-emerald-700/60','bg-emerald-500','bg-orange-400'].map((c,i) => (
-                <div key={i} className={`w-3 h-3 rounded-sm ${c}`} />
-              ))}
-              <span>More</span>
-            </div>
           </div>
-
-          {/* ── CTA button ── */}
-          <button
-            onClick={() => navigate('/scan')}
-            className="w-full py-4 rounded-2xl flex items-center justify-center gap-3
-              bg-gradient-to-r from-emerald-600 to-emerald-500
-              hover:from-emerald-500 hover:to-emerald-400
-              text-gray-950 font-black text-base
-              shadow-xl shadow-emerald-900/40
-              transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] cursor-pointer">
-            🍽️ Let's Build a Meal
-          </button>
         </div>
+
 
 
         {/* ── RIGHT: Profile panel ─────────────────────────────────────── */}
@@ -631,6 +662,20 @@ const Home = () => {
               <p className="text-gray-600 text-xs">kcal / person / day</p>
             </div>
           )}
+        </div>
+      </div>
+      {/* ── Day tooltip (always mounted, shown/hidden imperatively) ── */}
+      <div
+        ref={tooltipRef}
+        className="fixed z-[500] pointer-events-none"
+        style={{ opacity: 0, visibility: 'hidden', transition: 'opacity 0.1s ease' }}
+      >
+        <div className="flex flex-col items-center">
+          <div data-card className="px-3 py-2 rounded-xl text-xs font-semibold shadow-xl backdrop-blur-md border whitespace-nowrap bg-[#0d1117] border-white/10 text-gray-300">
+            <span data-label className="font-black text-[11px] block" />
+            <span data-status className="text-[10px] mt-0.5 font-bold text-center block text-gray-600" />
+          </div>
+          <div data-arrow className="w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-[#0d1117]" />
         </div>
       </div>
     </div>
